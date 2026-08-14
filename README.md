@@ -2,6 +2,9 @@
 
 İşitme yeteneğini test etmenin ve geliştirmenin eğlenceli bir yolu.
 
+**▶ [sinancanan.github.io/bunu-duyuyor-musun](https://sinancanan.github.io/bunu-duyuyor-musun/)**
+— kulaklıkla aç.
+
 Tarayıcıda çalışan tek dosyalık bir uygulama. Kurulum, derleme adımı, paket
 yöneticisi, bağımlılık ve ses dosyası **yok** — flüt tınısı dahil bütün sesler
 Web Audio API ile anlık üretilir. Hiçbir veri sunucuya gitmez.
@@ -16,7 +19,9 @@ Yerel bir sunucu tercih edersen:
 python3 -m http.server 8000
 ```
 
-GitHub Pages'e koyarsan da olduğu gibi çalışır (`.nojekyll` bunun için).
+Yayındaki sürüm GitHub Pages üzerinde, `main` dalının kökünden servis ediliyor
+(`.nojekyll` dosyası Pages'in dosyaları olduğu gibi sunması için). `git push`
+sonrası site birkaç dakika içinde kendini günceller.
 
 ## Ne yapıyor
 
