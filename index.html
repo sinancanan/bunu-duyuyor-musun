@@ -1,0 +1,3160 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="description" content="İşitme yeteneğini test etmenin ve geliştirmenin eğlenceli bir yolu! Tarayıcıda çalışır, kurulum gerektirmez." />
+<meta name="theme-color" content="#0f1115" />
+<title>Bunu duyuyor musun?</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════
+   DEĞİŞKENLER
+   Renk kodu oyunun tamamında sabit:
+     kehribar = HEDEF ses,  yeşil = SENİN sesin.
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --bg:        #0f1115;
+  --bg-soft:   #171a21;
+  --bg-soft-2: #1e222c;
+  --line:      #262b36;
+  --line-soft: #333a48;
+  --text:      #e8eaf0;
+  --muted:     #9aa3b2;
+  --muted-dim: #6b7484;
+
+  --hedef:     #f5b544;   /* kehribar — hedef ses */
+  --hedef-dim: #6b4d15;
+  --oyuncu:    #4ade80;   /* yeşil — kullanıcının sesi */
+  --oyuncu-dim:#164a2a;
+
+  --iyi:       #4ade80;
+  --orta:      #f5b544;
+  --kotu:      #f2686c;
+  --bilgi:     #6aa9f5;
+
+  /* Stüdyo yüzeyleri: panel üstü ışık alır, oluklar çukurdur, ekranlar siyahtır */
+  --panel-ust:  rgba(255, 255, 255, 0.055);   /* üst pah — ışık buradan gelir */
+  --panel-golge: rgba(0, 0, 0, 0.45);
+  --oluk:       #07090c;                      /* fader oluğu, ekran zemini */
+  --oluk-kenar: #0b0e13;
+  --tik:        rgba(255, 255, 255, 0.13);    /* ölçek çentikleri */
+  --tik-orta:   rgba(255, 255, 255, 0.34);    /* merkez çentiği */
+  --metal-ust:  #434b5d;
+  --metal-alt:  #191d26;
+
+  --radius:    14px;
+  --radius-sm: 9px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SIFIRLAMA / TEMEL
+   ═══════════════════════════════════════════════════════════════ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  min-height: 100vh;
+  /* Tepeden düşen yumuşak bir ışık — stüdyo panelinin üstündeki lamba */
+  background:
+    radial-gradient(1100px 520px at 50% -12%, #191e27 0%, rgba(25, 30, 39, 0) 62%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--font);
+  line-height: 1.5;
+  padding: 16px;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+.kabuk { width: min(100%, 860px); margin: 0 auto; }
+
+h1, h2, h3 { line-height: 1.25; font-weight: 650; }
+
+/* ═══════════════════════════════════════════════════════════════
+   ÜST BAŞLIK + RÜTBE
+   ═══════════════════════════════════════════════════════════════ */
+.ust {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+
+.marka { display: flex; align-items: baseline; gap: 10px; }
+.marka__ad { font-size: 1.15rem; letter-spacing: -0.01em; }
+.marka__alt { font-size: 0.75rem; color: var(--muted-dim); }
+
+.rutbe {
+  display: flex; align-items: center; gap: 10px;
+  background: linear-gradient(180deg, #1c212a 0%, #15181f 100%);
+  border: 1px solid var(--line);
+  border-radius: 999px; padding: 6px 14px;
+  box-shadow: inset 0 1px 0 var(--panel-ust), 0 1px 3px var(--panel-golge);
+}
+.rutbe__ad  { font-size: 0.8rem; font-weight: 600; }
+.rutbe__xp  { font-size: 0.75rem; font-family: var(--mono); color: #9fb8a8; font-variant-numeric: tabular-nums; }
+/* Seviye göstergesi: segmentli LED bar — dolgu maskeyle bölümlere ayrılır */
+.rutbe__cizgi {
+  width: 66px; height: 7px; border-radius: 2px; overflow: hidden;
+  background: var(--oluk); border: 1px solid var(--oluk-kenar);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.85);
+}
+.rutbe__dolu {
+  height: 100%;
+  background: linear-gradient(90deg, #3fbf6d 0%, #7fd94f 55%, var(--hedef) 100%);
+  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 3px, transparent 3px 5px);
+          mask-image: repeating-linear-gradient(90deg, #000 0 3px, transparent 3px 5px);
+  transition: width 0.4s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SEKMELER
+   ═══════════════════════════════════════════════════════════════ */
+.sekmeler {
+  display: flex; gap: 4px; margin-bottom: 16px;
+  background: linear-gradient(180deg, #101318 0%, #161a21 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 4px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.55), 0 1px 0 rgba(255,255,255,0.035);
+  overflow-x: auto; scrollbar-width: none;
+}
+.sekmeler::-webkit-scrollbar { display: none; }
+
+.sekme {
+  flex: 1 1 auto; white-space: nowrap;
+  font: inherit; font-size: 0.85rem; font-weight: 550;
+  color: var(--muted); background: none; border: none;
+  border-radius: var(--radius-sm); padding: 9px 14px; cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.sekme:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+/* Seçili sekme: basılı kalmış, arkadan aydınlatılmış bir tuş */
+.sekme[aria-selected="true"] {
+  color: #12151b;
+  background: linear-gradient(180deg, #f1f4f9 0%, #cdd4e0 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 3px rgba(0,0,0,0.55);
+}
+.sekme:focus-visible { outline: 2px solid var(--bilgi); outline-offset: 2px; }
+
+.panel { display: none; }
+.panel.acik { display: block; animation: belir 0.25s ease; }
+@keyframes belir { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* ═══════════════════════════════════════════════════════════════
+   KART
+   ═══════════════════════════════════════════════════════════════ */
+.kart {
+  /* Rack ünitesi: ince yatay tarama dokusu + üstten alta hafif eğim,
+     üst kenarda pah ışığı, altta gölge. */
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #1b1f28 0%, #15181f 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px; margin-bottom: 14px;
+  box-shadow:
+    inset 0 1px 0 var(--panel-ust),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.35),
+    0 2px 6px var(--panel-golge);
+}
+.kart--sik { padding: 14px; }
+
+.kart__baslik {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 12px; flex-wrap: wrap;
+}
+.kart__baslik h2 { font-size: 0.95rem; }
+.kart__baslik h3 { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+
+.aciklama { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+.aciklama + .aciklama { margin-top: 8px; }
+.aciklama strong { color: var(--text); font-weight: 600; }
+
+/* ═══════════════════════════════════════════════════════════════
+   BUTONLAR
+   ═══════════════════════════════════════════════════════════════ */
+.btn {
+  font: inherit; font-size: 0.88rem; font-weight: 600;
+  color: var(--text);
+  background: linear-gradient(180deg, #272d38 0%, #1c212a 100%);
+  border: 1px solid var(--line-soft); border-radius: var(--radius-sm);
+  padding: 11px 18px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.07), 0 1px 2px rgba(0,0,0,0.4);
+  transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.1s ease, opacity 0.14s ease;
+}
+.btn:hover:not(:disabled)  { background: linear-gradient(180deg, #2f3644 0%, #232936 100%); border-color: #414a5c; }
+/* Basılınca yükselti kaybolur, tuş oturur */
+.btn:active:not(:disabled) {
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.55);
+  background: linear-gradient(180deg, #191d26 0%, #20262f 100%);
+}
+.btn:disabled              { opacity: 0.4; cursor: not-allowed; }
+.btn:focus-visible         { outline: 2px solid var(--bilgi); outline-offset: 2px; }
+
+.btn--hedef  { color: var(--hedef);  border-color: var(--hedef-dim);
+  background: linear-gradient(180deg, #2b2110 0%, #1e1709 100%); }
+.btn--hedef:hover:not(:disabled)  { background: linear-gradient(180deg, #362a14 0%, #261d0c 100%); border-color: #8a6520; }
+.btn--oyuncu { color: var(--oyuncu); border-color: var(--oyuncu-dim);
+  background: linear-gradient(180deg, #10291b 0%, #0a1c12 100%); }
+.btn--oyuncu:hover:not(:disabled) { background: linear-gradient(180deg, #163524 0%, #0e2517 100%); border-color: #216b3d; }
+
+/* Ana eylem: aydınlatılmış transport tuşu */
+.btn--ana {
+  font-size: 1rem; padding: 15px 34px; width: 100%;
+  color: #05200d; border-color: #2f8f56;
+  background: linear-gradient(180deg, #6df09d 0%, #43cf78 52%, #35b566 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.45),
+    0 0 18px rgba(74, 222, 128, 0.18),
+    0 1px 3px rgba(0,0,0,0.45);
+  text-shadow: 0 1px 0 rgba(255,255,255,0.2);
+}
+.btn--ana:hover:not(:disabled) { background: linear-gradient(180deg, #7ff5ab 0%, #4edc84 52%, #3cc16f 100%); }
+.btn--ana:active:not(:disabled) {
+  background: linear-gradient(180deg, #35b566 0%, #43cf78 100%);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.35);
+}
+
+.btn--kucuk { font-size: 0.78rem; padding: 7px 12px; }
+.btn--sade  { background: none; border-color: var(--line); color: var(--muted); }
+.btn--sade:hover:not(:disabled) { background: var(--bg-soft-2); color: var(--text); }
+
+.btn-satir { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-satir--esit > .btn { flex: 1 1 0; min-width: 120px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   AÇILIŞ ÖRTÜSÜ (uyarı + kalibrasyon)
+   ═══════════════════════════════════════════════════════════════ */
+.ortu {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(10, 12, 15, 0.94);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  display: grid; place-items: center; padding: 20px;
+  overflow-y: auto;
+}
+.ortu[hidden] { display: none; }
+
+.ortu__kutu {
+  width: min(100%, 520px);
+  background: var(--bg-soft); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 26px;
+}
+.ortu__baslik { font-size: 1.3rem; margin-bottom: 6px; }
+.ortu__slogan { font-size: 0.88rem; color: var(--muted); margin-bottom: 20px; }
+
+.uyari {
+  display: flex; gap: 11px; align-items: flex-start;
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  font-size: 0.82rem; line-height: 1.55; margin-bottom: 12px;
+}
+.uyari__ikon { font-size: 1rem; line-height: 1.4; flex: none; }
+.uyari--dikkat { background: #2a2110; border: 1px solid #6b5219; color: #f0d097; }
+.uyari--bilgi  { background: #121d2c; border: 1px solid #2b4a72; color: #b6d2f5; }
+.uyari--kirmizi{ background: #2b1416; border: 1px solid #6e2b30; color: #f2b3b5; }
+
+/* ═══════════════════════════════════════════════════════════════
+   FORM ÖĞELERİ
+   ═══════════════════════════════════════════════════════════════ */
+.alan { margin-bottom: 16px; }
+.alan__etiket {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 0.78rem; color: var(--muted); margin-bottom: 7px;
+}
+/* Sayısal okumalar panele gömülü küçük ekranlardır */
+.alan__deger {
+  font-family: var(--mono); font-size: 0.8rem;
+  color: #b8f5cf; text-shadow: 0 0 7px rgba(74, 222, 128, 0.35);
+  background: var(--oluk); border: 1px solid var(--oluk-kenar);
+  border-radius: 5px; padding: 3px 9px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.85);
+}
+
+/* ── FADER ──────────────────────────────────────────────────────────
+   Kaydırıcı bir mikser faderı gibi davranır: oluk panele gömülüdür,
+   başlık ise metal bir kapaktır ve ortasından geçen yeşil çizgi
+   okuma çizgisidir (yeşil = senin sesin, renk kodu her yerde aynı). */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 34px; background: none; cursor: pointer;
+}
+input[type="range"]:focus-visible { outline: 2px solid var(--bilgi); outline-offset: 4px; border-radius: 6px; }
+input[type="range"]:disabled { cursor: not-allowed; opacity: 0.45; }
+
+/* Oluk: panele oyulmuş kanal */
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 10px; border-radius: 5px;
+  background: linear-gradient(180deg, var(--oluk) 0%, #12161d 100%);
+  border: 1px solid var(--oluk-kenar);
+  box-shadow: inset 0 2px 3px rgba(0,0,0,0.85), 0 1px 0 rgba(255,255,255,0.045);
+}
+input[type="range"]::-moz-range-track {
+  height: 10px; border-radius: 5px;
+  background: linear-gradient(180deg, var(--oluk) 0%, #12161d 100%);
+  border: 1px solid var(--oluk-kenar);
+  box-shadow: inset 0 2px 3px rgba(0,0,0,0.85);
+}
+
+/* Kapak: dikey metal blok, ortasında okuma çizgisi */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 26px; height: 30px; margin-top: -10px;
+  border-radius: 5px;
+  border: 1px solid #4b5468;
+  background: linear-gradient(180deg,
+    var(--metal-ust) 0%, #343b4a 40%,
+    #7cf0a8 46%, #4ade80 50%, #7cf0a8 54%,
+    #2b313d 60%, var(--metal-alt) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.22),
+    inset 0 -1px 0 rgba(0,0,0,0.5),
+    0 2px 5px rgba(0,0,0,0.6);
+  transition: box-shadow 0.1s ease;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 26px; height: 30px; border-radius: 5px;
+  border: 1px solid #4b5468;
+  background: linear-gradient(180deg,
+    var(--metal-ust) 0%, #343b4a 40%,
+    #7cf0a8 46%, #4ade80 50%, #7cf0a8 54%,
+    #2b313d 60%, var(--metal-alt) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 2px 5px rgba(0,0,0,0.6);
+}
+input[type="range"]:active:not(:disabled)::-webkit-slider-thumb {
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.3), 0 0 12px rgba(74,222,128,0.35), 0 2px 5px rgba(0,0,0,0.6);
+}
+
+/* Fader ölçeği: eşit aralıklı çentikler, merkezde daha uzun olan */
+.olcek {
+  height: 10px; margin-top: 1px; pointer-events: none;
+  background-image:
+    repeating-linear-gradient(90deg, var(--tik) 0 1px, transparent 1px 5%),
+    linear-gradient(90deg, transparent calc(50% - 1px), var(--tik-orta) calc(50% - 1px), var(--tik-orta) calc(50% + 1px), transparent calc(50% + 1px));
+  background-size: 100% 4px, 100% 10px;
+  background-repeat: no-repeat;
+}
+
+.anahtar { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 0.85rem; padding: 4px 0; }
+.anahtar input { width: 17px; height: 17px; accent-color: var(--oyuncu); cursor: pointer; flex: none; }
+.anahtar__not { font-size: 0.75rem; color: var(--muted-dim); display: block; }
+
+select {
+  font: inherit; font-size: 0.85rem; color: var(--text);
+  background: var(--bg-soft-2); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); padding: 8px 11px; cursor: pointer;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   OYUN — KAYDIRICI BÖLGESİ
+   ═══════════════════════════════════════════════════════════════ */
+.tur-ust {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 10px; flex-wrap: wrap; margin-bottom: 4px;
+}
+.etiketler { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.etiket {
+  font-size: 0.7rem; font-weight: 600; letter-spacing: 0.03em;
+  border-radius: 99px; padding: 4px 10px;
+  background: linear-gradient(180deg, #1a1e26 0%, #22272f 100%);
+  border: 1px solid var(--line-soft); color: var(--muted);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.4);
+}
+.etiket--asama { color: var(--hedef); border-color: var(--hedef-dim); background: #241c0c; }
+.etiket--seri  { color: var(--oyuncu); border-color: var(--oyuncu-dim); background: #0d2317; }
+
+.sayaclar { display: flex; gap: 16px; }
+.sayac { text-align: right; }
+.sayac__etiket { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted-dim); display: block; }
+.sayac__deger  {
+  font-size: 1.15rem; font-weight: 700; font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: #ffd98a; text-shadow: 0 0 9px rgba(245, 181, 68, 0.4);
+}
+
+/* Deneyim seviyesi seçici */
+.mod-secim {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  margin-bottom: 14px;
+}
+.mod {
+  font: inherit; font-size: 0.85rem; font-weight: 600;
+  color: var(--muted);
+  background: linear-gradient(180deg, #242a34 0%, #191d25 100%);
+  border: 1px solid var(--line-soft); border-radius: var(--radius-sm);
+  padding: 11px 8px; cursor: pointer; text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 2px rgba(0,0,0,0.4);
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.mod:hover { color: var(--text); background: linear-gradient(180deg, #2c3340 0%, #1f242e 100%); }
+.mod:focus-visible { outline: 2px solid var(--bilgi); outline-offset: 2px; }
+.mod__alt { display: block; font-size: 0.68rem; font-weight: 500; color: var(--muted-dim); margin-top: 2px; }
+/* Seçili mod: içeri oturmuş ve arkadan kehribar aydınlatılmış tuş */
+.mod[aria-pressed="true"] {
+  color: #ffd98a; border-color: #8a6520;
+  background: linear-gradient(180deg, #1e1709 0%, #2e2411 100%);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.5), inset 0 0 14px rgba(245,181,68,0.14), 0 0 10px rgba(245,181,68,0.08);
+  text-shadow: 0 0 8px rgba(245,181,68,0.35);
+}
+.mod[aria-pressed="true"] .mod__alt { color: #c99a3c; }
+
+.mod-uyari {
+  border-radius: var(--radius-sm); padding: 11px 14px; margin-bottom: 14px;
+  font-size: 0.82rem; line-height: 1.55;
+  background: var(--bg-soft-2); border: 1px solid var(--line-soft); color: var(--muted);
+}
+.mod-uyari strong { color: var(--text); }
+.mod-uyari--dikkat { background: #2a2110; border-color: #6b5219; color: #f0d097; }
+.mod-uyari--dikkat strong { color: #ffe6b0; }
+
+/* Çalma göstergesi — hangi sesin çaldığını söyler, perde hakkında
+   hiçbir şey sızdırmaz. Karşılaştırma kulakla yapılır. */
+.calan {
+  display: flex; align-items: center; gap: 11px;
+  min-height: 54px; padding: 14px 16px; margin-bottom: 16px;
+  background: linear-gradient(180deg, #0a0d11 0%, #101419 100%);
+  border: 1px solid var(--oluk-kenar);
+  border-radius: var(--radius-sm);
+  box-shadow: inset 0 2px 5px rgba(0,0,0,0.7), 0 1px 0 rgba(255,255,255,0.035);
+  font-size: 0.85rem; color: var(--muted);
+}
+.calan__ad { font-weight: 650; color: var(--muted-dim); }
+.calan--hedef .calan__ad { color: var(--hedef); }
+.calan--benim .calan__ad { color: var(--oyuncu); }
+
+/* Kaydırıcı */
+.kaydirici-sarma { margin-bottom: 18px; }
+.kaydirici-uc {
+  display: flex; justify-content: space-between;
+  font-size: 0.68rem; color: var(--muted-dim); font-family: var(--mono);
+  margin-top: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SONUÇ KARTI
+   ═══════════════════════════════════════════════════════════════ */
+.sonuc { display: none; }
+.sonuc.acik { display: block; animation: belir 0.3s ease; }
+
+.sonuc__ust { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; flex-wrap: wrap; }
+.sonuc__bant { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+.sonuc__bant--mukemmel { color: var(--iyi); }
+.sonuc__bant--iyi      { color: #a3e635; }
+.sonuc__bant--yakin    { color: var(--orta); }
+.sonuc__bant--iska     { color: var(--kotu); }
+.sonuc__puan { margin-left: auto; text-align: right; }
+.sonuc__puan b { font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+
+.kadran { width: 100%; height: 76px; display: block; margin-bottom: 12px; }
+
+.dokum { display: grid; grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); gap: 10px; }
+.dokum__oge {
+  background: linear-gradient(180deg, #21262f 0%, #1a1e26 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 9px 11px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.045), 0 1px 2px rgba(0,0,0,0.3);
+}
+.dokum__etiket { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-dim); display: block; }
+.dokum__deger  {
+  font-size: 0.95rem; font-weight: 600; font-family: var(--mono);
+  color: #d8e6f5; text-shadow: 0 0 7px rgba(150, 190, 230, 0.22);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TEST / ANTRENMAN ORTAK
+   ═══════════════════════════════════════════════════════════════ */
+.adim { text-align: center; padding: 8px 0 4px; }
+.adim__sayi  { font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted-dim); }
+.adim__soru  { font-size: 1.15rem; font-weight: 650; margin: 10px 0 6px; }
+.adim__not   { font-size: 0.82rem; color: var(--muted); max-width: 46ch; margin: 0 auto 18px; line-height: 1.6; }
+
+.calma-durum {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  height: 54px; font-size: 0.9rem; font-weight: 600; color: var(--muted);
+}
+/* Sinyal LED'i: sönükken çukur bir cam, yanınca panele vuran bir hâle */
+.nabiz {
+  width: 10px; height: 10px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 35% 30%, #2f3746, #171b23);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.05);
+}
+.nabiz.aktif {
+  background: radial-gradient(circle at 35% 30%, #ffe4a8, var(--hedef) 60%, #b5751a);
+  box-shadow: 0 0 10px rgba(245,181,68,0.7), 0 0 3px rgba(245,181,68,0.9), inset 0 0 2px rgba(255,255,255,0.6);
+  animation: nabza 1s ease-in-out infinite;
+}
+@keyframes nabza { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.8); } }
+
+.ilerleme-cizgi { height: 4px; border-radius: 99px; background: var(--line); overflow: hidden; margin-bottom: 18px; }
+.ilerleme-dolu  { height: 100%; background: var(--bilgi); border-radius: 99px; transition: width 0.3s ease; }
+
+/* ═══════════════════════════════════════════════════════════════
+   İLERLEME PANELİ
+   ═══════════════════════════════════════════════════════════════ */
+.ozet { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.ozet__oge {
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg, #1b1f28 0%, #15181f 100%);
+  border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px;
+  box-shadow: inset 0 1px 0 var(--panel-ust), 0 2px 5px var(--panel-golge);
+}
+.ozet__etiket { display: block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-dim); }
+.ozet__deger  {
+  display: block; font-size: 1.5rem; font-weight: 700; margin-top: 3px;
+  line-height: 1.15; font-family: var(--mono); font-variant-numeric: tabular-nums;
+  color: #ffd98a; text-shadow: 0 0 10px rgba(245, 181, 68, 0.3);
+}
+.ozet__alt    { display: block; font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+
+.grafik {
+  width: 100%; height: 170px; display: block;
+  background: linear-gradient(180deg, var(--oluk) 0%, #0c0f14 100%);
+  border: 1px solid var(--oluk-kenar); border-radius: 6px;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.7);
+}
+.grafik--kisa { height: 140px; }
+
+.bos-durum { text-align: center; color: var(--muted-dim); font-size: 0.84rem; padding: 26px 12px; line-height: 1.6; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+th { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-dim); font-weight: 600; }
+td { font-variant-numeric: tabular-nums; }
+tr:last-child td { border-bottom: none; }
+.tablo-sarma { overflow-x: auto; }
+
+.damga { font-size: 0.68rem; font-weight: 600; border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
+.damga--ok  { background: #0d2317; color: var(--oyuncu); border: 1px solid var(--oyuncu-dim); }
+.damga--suphe { background: #2b1416; color: var(--kotu); border: 1px solid #6e2b30; }
+
+/* ═══════════════════════════════════════════════════════════════
+   ALT BİLGİ
+   ═══════════════════════════════════════════════════════════════ */
+.alt {
+  text-align: center; font-size: 0.72rem; color: var(--muted-dim);
+  padding: 18px 0 6px; line-height: 1.7;
+}
+kbd {
+  font-family: var(--mono); font-size: 0.72rem;
+  background: var(--bg-soft-2); border: 1px solid var(--line-soft);
+  border-bottom-width: 2px; border-radius: 5px; padding: 1px 5px; color: var(--muted);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DAR EKRAN
+   ═══════════════════════════════════════════════════════════════ */
+@media (max-width: 560px) {
+  body { padding: 12px; }
+  .ust { justify-content: center; }
+  .sekme { font-size: 0.78rem; padding: 8px 10px; }
+  .btn-satir--esit > .btn { min-width: 0; flex-basis: 100%; }
+  .sonuc__puan { margin-left: 0; text-align: left; }
+  .ortu__kutu { padding: 20px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HAREKET HASSASİYETİ
+   ═══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     AÇILIŞ ÖRTÜSÜ — uyarı → kalibrasyon → başla
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="ortu" id="ortu">
+  <div class="ortu__kutu">
+
+    <!-- Adım 1: karşılama ve uyarılar -->
+    <div data-giris="1">
+      <h1 class="ortu__baslik">Bunu duyuyor musun?</h1>
+      <p class="ortu__slogan">İşitme yeteneğini test etmenin ve geliştirmenin eğlenceli bir yolu!</p>
+
+      <div class="uyari uyari--dikkat">
+        <span class="uyari__ikon" aria-hidden="true">🎧</span>
+        <span><strong>Kulaklık şart.</strong> Dizüstü hoparlörleri 15 kHz üstünü zaten
+        basamaz; hoparlörle işitme testi anlamsız sonuç verir.</span>
+      </div>
+
+      <div class="uyari uyari--kirmizi">
+        <span class="uyari__ikon" aria-hidden="true">⚕️</span>
+        <span><strong>Bu tıbbi bir test değildir.</strong> Tarayıcı mutlak ses düzeyini
+        bilemez, dolayısıyla bu bir odyogram değildir ve tanı koymaz. İşitmenle ilgili
+        bir kaygın varsa bir odyoloğa görün.</span>
+      </div>
+
+      <div class="uyari uyari--bilgi">
+        <span class="uyari__ikon" aria-hidden="true">🔉</span>
+        <span>Sesi <strong>rahat bir seviyede</strong> tut. Duyulmayan tiz tonların
+        yüksekliğini kulak yargılayamaz; sesi zorlayarak açma.</span>
+      </div>
+
+      <div class="btn-satir" style="margin-top:18px">
+        <button class="btn btn--ana" id="giris-ileri" type="button">Anladım, devam</button>
+      </div>
+    </div>
+
+    <!-- Adım 2: ses seviyesi kalibrasyonu -->
+    <div data-giris="2" hidden>
+      <h1 class="ortu__baslik">Ses seviyesini ayarla</h1>
+      <p class="ortu__slogan">1 kHz referans ton çalacak. Rahat duyacağın bir seviyeye getir.</p>
+
+      <div class="calma-durum">
+        <span class="nabiz" id="kalib-nabiz"></span>
+        <span id="kalib-durum">Ton kapalı</span>
+      </div>
+
+      <div class="btn-satir btn-satir--esit" style="margin-bottom:18px">
+        <button class="btn btn--hedef" id="kalib-cal" type="button">Referans tonu çal</button>
+      </div>
+
+      <div class="alan">
+        <label class="alan__etiket" for="kalib-ses">
+          <span>Uygulama ses düzeyi</span>
+          <span class="alan__deger" id="kalib-ses-deger">%60</span>
+        </label>
+        <input type="range" id="kalib-ses" min="5" max="100" step="1" value="60"
+               aria-label="Uygulama ses düzeyi" />
+      </div>
+
+      <div class="uyari uyari--bilgi">
+        <span class="uyari__ikon" aria-hidden="true">📌</span>
+        <span>Seviyeyi ayarladıktan sonra <strong>sistem sesini değiştirme</strong> —
+        oturumlar arası karşılaştırmanın anlamlı olması buna bağlı.</span>
+      </div>
+
+      <div class="btn-satir" style="margin-top:18px">
+        <button class="btn btn--ana" id="giris-basla" type="button" disabled>Başla</button>
+      </div>
+      <p class="anahtar__not" id="giris-basla-not" style="text-align:center;margin-top:8px">
+        Devam etmek için önce referans tonu çal — duymadığın bir seviyeyi ayarlayamazsın.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<div class="kabuk">
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       ÜST BAŞLIK
+       ═══════════════════════════════════════════════════════════════ -->
+  <header class="ust">
+    <div class="marka">
+      <span class="marka__ad">Bunu duyuyor musun?</span>
+    </div>
+    <div class="rutbe" title="Toplam deneyim puanı">
+      <span class="rutbe__ad" id="rutbe-ad">Çaylak Kulak</span>
+      <span class="rutbe__cizgi"><span class="rutbe__dolu" id="rutbe-dolu" style="width:0%"></span></span>
+      <span class="rutbe__xp" id="rutbe-xp">0 XP</span>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SEKMELER
+       ═══════════════════════════════════════════════════════════════ -->
+  <nav class="sekmeler" role="tablist" aria-label="Bölümler">
+    <button class="sekme" role="tab" id="sekme-oyun"    aria-selected="true"  aria-controls="panel-oyun"    data-panel="oyun">Oyun</button>
+    <button class="sekme" role="tab" id="sekme-ayirt"   aria-selected="false" aria-controls="panel-ayirt"   data-panel="ayirt">Ayırt Etme</button>
+    <button class="sekme" role="tab" id="sekme-test"    aria-selected="false" aria-controls="panel-test"    data-panel="test">İşitme Testi</button>
+    <button class="sekme" role="tab" id="sekme-ilerle"  aria-selected="false" aria-controls="panel-ilerle"  data-panel="ilerle">İlerleme</button>
+    <button class="sekme" role="tab" id="sekme-ayar"    aria-selected="false" aria-controls="panel-ayar"    data-panel="ayar">Ayarlar</button>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL — OYUN
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="panel acik" id="panel-oyun" role="tabpanel" aria-labelledby="sekme-oyun">
+
+    <div class="kart">
+
+      <!-- Deneyim seviyesi: aşamadan bağımsız, kuralları değiştirir -->
+      <div class="mod-secim" role="group" aria-label="Deneyim seviyesi">
+        <button class="mod" type="button" data-mod="1" aria-pressed="true">Acemi<span class="mod__alt">serbest dinleme</span></button>
+        <button class="mod" type="button" data-mod="2" aria-pressed="false">Deneyimli<span class="mod__alt">tek dinleme · 3 sn</span></button>
+        <button class="mod" type="button" data-mod="3" aria-pressed="false">Uzman<span class="mod__alt">tek dinleme · 2 sn · anlık karar</span></button>
+      </div>
+
+      <p class="mod-uyari" id="mod-uyari"></p>
+
+      <div class="tur-ust">
+        <div class="etiketler">
+          <span class="etiket etiket--asama" id="et-asama">Aşama 1 · Ayırt Etme</span>
+          <span class="etiket" id="et-seviye">Seviye 1 · ±25 cent</span>
+          <span class="etiket etiket--seri" id="et-seri" hidden>Seri 0</span>
+        </div>
+        <div class="sayaclar">
+          <div class="sayac">
+            <span class="sayac__etiket">Puan</span>
+            <span class="sayac__deger" id="sy-puan">0</span>
+          </div>
+          <div class="sayac">
+            <span class="sayac__etiket">Tur</span>
+            <span class="sayac__deger" id="sy-tur">0</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="aciklama" id="oyun-yonerge" style="margin:10px 0 14px"></p>
+
+      <div class="calan" id="calan-kutu">
+        <span class="nabiz" id="calan-nabiz"></span>
+        <span class="calan__ad" id="calan-metin">Hiçbir şey çalmıyor</span>
+      </div>
+
+      <!-- Kaydırıcı: değeri Hz değil CENT sapmasıdır -->
+      <div class="kaydirici-sarma">
+        <label class="alan__etiket" for="kaydirici">
+          <span>Senin sesin</span>
+          <span class="alan__deger" id="kaydirici-deger">— Hz</span>
+        </label>
+        <input type="range" id="kaydirici" min="-300" max="300" step="1" value="0"
+               aria-label="Frekans kaydırıcısı, cent cinsinden"
+               aria-valuetext="0 cent" />
+        <div class="olcek" aria-hidden="true"></div>
+        <div class="kaydirici-uc">
+          <span>◀ pes</span>
+          <span id="kaydirici-uc-orta">ince ayar: ok tuşları</span>
+          <span>tiz ▶</span>
+        </div>
+      </div>
+
+      <div class="btn-satir btn-satir--esit" style="margin-bottom:12px">
+        <button class="btn btn--hedef"    id="btn-hedef"    type="button">Hedefi Çal</button>
+        <button class="btn btn--oyuncu"   id="btn-benim"    type="button">Benimkini Çal</button>
+      </div>
+
+      <button class="btn btn--ana" id="btn-kontrol" type="button">Kontrol Et!</button>
+    </div>
+
+    <!-- Sonuç kartı — yalnızca Kontrol Et! sonrası -->
+    <div class="kart sonuc" id="sonuc-kart">
+      <div class="sonuc__ust">
+        <span class="sonuc__bant" id="sonuc-bant">Mükemmel</span>
+        <div class="sonuc__puan">
+          <span class="sayac__etiket">Kazanılan</span><br />
+          <b id="sonuc-puan">+0</b>
+        </div>
+      </div>
+
+      <canvas class="kadran" id="kadran-tuval" aria-hidden="true"></canvas>
+      <p class="aciklama" id="sonuc-ozet" style="text-align:center;margin-bottom:14px"></p>
+
+      <div class="dokum">
+        <div class="dokum__oge">
+          <span class="dokum__etiket">Sapma</span>
+          <span class="dokum__deger" id="dk-sapma">—</span>
+        </div>
+        <div class="dokum__oge">
+          <span class="dokum__etiket">Hedef</span>
+          <span class="dokum__deger" id="dk-hedef">—</span>
+        </div>
+        <div class="dokum__oge">
+          <span class="dokum__etiket">Senin</span>
+          <span class="dokum__deger" id="dk-benim">—</span>
+        </div>
+        <div class="dokum__oge">
+          <span class="dokum__etiket">Nota karşılığı</span>
+          <span class="dokum__deger" id="dk-nota">—</span>
+        </div>
+      </div>
+
+      <button class="btn btn--ana" id="btn-sonraki" type="button" style="margin-top:16px">Yeniden Dene</button>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL — AYIRT ETME (JND merdiveni)
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="panel" id="panel-ayirt" role="tabpanel" aria-labelledby="sekme-ayirt">
+
+    <!-- Tanıtım -->
+    <div class="kart" id="ayirt-tanitim">
+      <div class="kart__baslik"><h2>Ayırt Etme Antrenmanı</h2></div>
+      <p class="aciklama">
+        İki ses arka arkaya çalar; <strong>hangisinin daha tiz</strong> olduğunu seçersin.
+        Doğru bildikçe aradaki fark daralır, yanıldıkça açılır. Ölçüm sonunda
+        <strong>fark eşiğin (JND)</strong> cent cinsinden çıkar — bu sayı düştükçe kulağın
+        keskinleşiyor demektir.
+      </p>
+      <p class="aciklama">
+        Ölçek için: eğitimsiz bir kulak tipik olarak 20–50 cent, eğitimli bir müzisyen
+        5–10 cent civarını ayırt eder. (100 cent = 1 yarım ses.)
+      </p>
+
+      <div class="alan" style="margin-top:16px">
+        <label class="alan__etiket" for="ayirt-bant"><span>Frekans bandı</span></label>
+        <select id="ayirt-bant">
+          <option value="250">250 Hz — pes bölge</option>
+          <option value="1000" selected>1000 Hz — orta bölge</option>
+          <option value="4000">4000 Hz — tiz bölge</option>
+        </select>
+      </div>
+
+      <button class="btn btn--ana" id="ayirt-basla" type="button">Ölçüme Başla</button>
+    </div>
+
+    <!-- Deneme akışı -->
+    <div class="kart" id="ayirt-akis" hidden>
+      <div class="ilerleme-cizgi"><span class="ilerleme-dolu" id="ayirt-ilerleme" style="width:0%"></span></div>
+
+      <div class="adim">
+        <span class="adim__sayi" id="ayirt-sayac">Deneme 1</span>
+        <p class="adim__soru">Hangisi daha tiz?</p>
+        <p class="adim__not" id="ayirt-not">İki ton çalıyor — dinle, sonra seç.</p>
+      </div>
+
+      <div class="calma-durum">
+        <span class="nabiz" id="ayirt-nabiz"></span>
+        <span id="ayirt-durum">Hazırlanıyor…</span>
+      </div>
+
+      <div class="btn-satir btn-satir--esit" style="margin-top:8px">
+        <button class="btn" id="ayirt-1" type="button" disabled>Birinci</button>
+        <button class="btn" id="ayirt-2" type="button" disabled>İkinci</button>
+      </div>
+
+      <div class="btn-satir" style="margin-top:10px">
+        <button class="btn btn--sade btn--kucuk" id="ayirt-tekrar" type="button" disabled>Tekrar dinlet</button>
+        <button class="btn btn--sade btn--kucuk" id="ayirt-vazgec" type="button">Vazgeç</button>
+      </div>
+    </div>
+
+    <!-- Sonuç -->
+    <div class="kart" id="ayirt-sonuc" hidden>
+      <div class="kart__baslik"><h2>Ayırt Etme Eşiğin</h2></div>
+      <div class="ozet">
+        <div class="ozet__oge">
+          <span class="ozet__etiket">Fark eşiği (JND)</span>
+          <span class="ozet__deger" id="ayirt-jnd">—</span>
+          <span class="ozet__alt">cent · düşük = iyi</span>
+        </div>
+        <div class="ozet__oge">
+          <span class="ozet__etiket">Bant</span>
+          <span class="ozet__deger" id="ayirt-sonuc-bant">—</span>
+          <span class="ozet__alt">referans frekans</span>
+        </div>
+        <div class="ozet__oge">
+          <span class="ozet__etiket">Önceki en iyi</span>
+          <span class="ozet__deger" id="ayirt-onceki">—</span>
+          <span class="ozet__alt">bu bantta</span>
+        </div>
+      </div>
+      <p class="aciklama" id="ayirt-yorum" style="margin-top:12px"></p>
+      <div class="btn-satir" style="margin-top:16px">
+        <button class="btn btn--ana" id="ayirt-yeniden" type="button">Yeniden Ölç</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL — İŞİTME TESTİ
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="panel" id="panel-test" role="tabpanel" aria-labelledby="sekme-test">
+
+    <!-- Tanıtım -->
+    <div class="kart" id="test-tanitim">
+      <div class="kart__baslik"><h2>İşitme Testi</h2></div>
+
+      <div class="uyari uyari--kirmizi">
+        <span class="uyari__ikon" aria-hidden="true">⚕️</span>
+        <span><strong>Bu tıbbi bir test değildir ve tanı koymaz.</strong> Tarayıcı mutlak
+        ses düzeyini bilemez; ölçebildiği tek şey, rahat bir seviyede duyabildiğin
+        <strong>en yüksek frekans</strong>. Sonuç donanıma ve ortam gürültüsüne çok bağlıdır.</span>
+      </div>
+
+      <p class="aciklama">
+        Yaşa bağlı işitme kaybı tiz uçtan başlar; "işitme yaşı" bu sayıdan türetilen
+        kaba bir tahmindir. Test sırasında denemelerin bir kısmı <strong>sessizdir</strong> —
+        bunlar yanıtlarının tutarlılığını ölçer. Süre: yaklaşık 1–2 dakika.
+      </p>
+
+      <label class="anahtar" style="margin-top:14px">
+        <input type="checkbox" id="test-kulak-ayri" />
+        <span>Her kulağı ayrı ölç
+          <span class="anahtar__not">İki kat sürer, ama kulaklar arası fark varsa gösterir.</span>
+        </span>
+      </label>
+
+      <button class="btn btn--ana" id="test-basla" type="button" style="margin-top:14px">Teste Başla</button>
+    </div>
+
+    <!-- Kulaklık doğrulaması -->
+    <div class="kart" id="test-kulaklik" hidden>
+      <div class="adim">
+        <span class="adim__sayi">Ön kontrol</span>
+        <p class="adim__soru">Ses hangi taraftan geldi?</p>
+        <p class="adim__not">Kulaklığın doğru takıldığını ve stereo çalıştığını doğruluyoruz.</p>
+      </div>
+      <div class="calma-durum">
+        <span class="nabiz" id="kulaklik-nabiz"></span>
+        <span id="kulaklik-durum">Hazırlanıyor…</span>
+      </div>
+      <div class="btn-satir btn-satir--esit">
+        <button class="btn" id="kulaklik-sol" type="button" disabled>Sol</button>
+        <button class="btn" id="kulaklik-sag" type="button" disabled>Sağ</button>
+      </div>
+      <div class="btn-satir" style="margin-top:10px">
+        <button class="btn btn--sade btn--kucuk" id="kulaklik-tekrar" type="button" disabled>Tekrar çal</button>
+      </div>
+    </div>
+
+    <!-- Frekans merdiveni -->
+    <div class="kart" id="test-akis" hidden>
+      <div class="ilerleme-cizgi"><span class="ilerleme-dolu" id="test-ilerleme" style="width:0%"></span></div>
+
+      <div class="adim">
+        <span class="adim__sayi" id="test-sayac">Deneme 1</span>
+        <p class="adim__soru">Bir şey duydun mu?</p>
+        <p class="adim__not" id="test-not">Emin değilsen "Duymadım" de — tahmin sonucu bozar.</p>
+      </div>
+
+      <div class="calma-durum">
+        <span class="nabiz" id="test-nabiz"></span>
+        <span id="test-durum">Hazırlanıyor…</span>
+      </div>
+
+      <div class="btn-satir btn-satir--esit" style="margin-top:8px">
+        <button class="btn btn--oyuncu" id="test-evet" type="button" disabled>Duydum</button>
+        <button class="btn"             id="test-hayir" type="button" disabled>Duymadım</button>
+      </div>
+
+      <div class="btn-satir" style="margin-top:10px">
+        <button class="btn btn--sade btn--kucuk" id="test-tekrar" type="button" disabled>Tekrar çal</button>
+        <button class="btn btn--sade btn--kucuk" id="test-vazgec" type="button">Vazgeç</button>
+      </div>
+    </div>
+
+    <!-- Sonuç -->
+    <div class="kart" id="test-sonuc" hidden>
+      <div class="kart__baslik">
+        <h2>Sonuç</h2>
+        <span class="damga" id="test-damga"></span>
+      </div>
+
+      <div class="ozet">
+        <div class="ozet__oge">
+          <span class="ozet__etiket">İşitme yaşı</span>
+          <span class="ozet__deger" id="test-yas">—</span>
+          <span class="ozet__alt">kaba tahmin</span>
+        </div>
+        <div class="ozet__oge">
+          <span class="ozet__etiket">En yüksek duyulan</span>
+          <span class="ozet__deger" id="test-hz">—</span>
+          <span class="ozet__alt" id="test-hz-alt">frekans</span>
+        </div>
+        <div class="ozet__oge">
+          <span class="ozet__etiket">Tutarlılık</span>
+          <span class="ozet__deger" id="test-tutarli">—</span>
+          <span class="ozet__alt">sessiz denemeler</span>
+        </div>
+      </div>
+
+      <p class="aciklama" id="test-yorum" style="margin-top:12px"></p>
+
+      <div class="uyari uyari--kirmizi" style="margin-top:14px">
+        <span class="uyari__ikon" aria-hidden="true">⚕️</span>
+        <span>Hatırlatma: bu bir odyogram değil, eğlence amaçlı kaba bir ölçümdür.
+        İşitmenle ilgili gerçek bir kaygın varsa odyoloğa görün.</span>
+      </div>
+
+      <div class="btn-satir" style="margin-top:16px">
+        <button class="btn btn--ana" id="test-yeniden" type="button">Yeniden Test Et</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL — İLERLEME
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="panel" id="panel-ilerle" role="tabpanel" aria-labelledby="sekme-ilerle">
+
+    <div class="ozet">
+      <div class="ozet__oge">
+        <span class="ozet__etiket">En iyi JND</span>
+        <span class="ozet__deger" id="il-jnd">—</span>
+        <span class="ozet__alt">cent · 1 kHz</span>
+      </div>
+      <div class="ozet__oge">
+        <span class="ozet__etiket">Ortalama hata</span>
+        <span class="ozet__deger" id="il-hata">—</span>
+        <span class="ozet__alt">cent · son 20 tur</span>
+      </div>
+      <div class="ozet__oge">
+        <span class="ozet__etiket">Toplam tur</span>
+        <span class="ozet__deger" id="il-tur">0</span>
+        <span class="ozet__alt">oynanan</span>
+      </div>
+      <div class="ozet__oge">
+        <span class="ozet__etiket">İşitme yaşı</span>
+        <span class="ozet__deger" id="il-yas">—</span>
+        <span class="ozet__alt">son ölçüm</span>
+      </div>
+    </div>
+
+    <div class="kart">
+      <div class="kart__baslik">
+        <h2>Ayırt etme eşiği</h2>
+        <h3>düşen çizgi = gelişme</h3>
+      </div>
+      <canvas class="grafik" id="gr-jnd" aria-hidden="true"></canvas>
+      <p class="bos-durum" id="gr-jnd-bos">Henüz ölçüm yok. <strong>Ayırt Etme</strong> sekmesinden ilk ölçümünü yap.</p>
+    </div>
+
+    <div class="kart">
+      <div class="kart__baslik">
+        <h2>Eşleştirme hatası</h2>
+        <h3>son 40 tur · cent</h3>
+      </div>
+      <canvas class="grafik" id="gr-hata" aria-hidden="true"></canvas>
+      <p class="bos-durum" id="gr-hata-bos">Henüz tur oynanmadı.</p>
+    </div>
+
+    <div class="kart">
+      <div class="kart__baslik">
+        <h2>Frekans bandına göre isabet</h2>
+        <h3>hangi bölgede zayıfsın</h3>
+      </div>
+      <canvas class="grafik grafik--kisa" id="gr-bant" aria-hidden="true"></canvas>
+      <p class="bos-durum" id="gr-bant-bos">Henüz yeterli veri yok.</p>
+    </div>
+
+    <div class="kart">
+      <div class="kart__baslik"><h2>İşitme testi geçmişi</h2></div>
+      <div class="tablo-sarma">
+        <table id="il-tablo">
+          <thead>
+            <tr><th>Tarih</th><th>En yüksek</th><th>İşitme yaşı</th><th>Sol / Sağ</th><th>Durum</th></tr>
+          </thead>
+          <tbody id="il-tablo-govde"></tbody>
+        </table>
+      </div>
+      <p class="bos-durum" id="il-tablo-bos">Henüz test yapılmadı.</p>
+    </div>
+
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       PANEL — AYARLAR
+       ═══════════════════════════════════════════════════════════════ -->
+  <section class="panel" id="panel-ayar" role="tabpanel" aria-labelledby="sekme-ayar">
+
+    <div class="kart">
+      <div class="kart__baslik"><h2>Ses</h2></div>
+
+      <div class="alan">
+        <label class="alan__etiket" for="ay-ses">
+          <span>Ses düzeyi</span>
+          <span class="alan__deger" id="ay-ses-deger">%60</span>
+        </label>
+        <input type="range" id="ay-ses" min="5" max="100" step="1" value="60" aria-label="Ses düzeyi" />
+      </div>
+
+      <label class="anahtar">
+        <input type="checkbox" id="ay-vibrato" checked />
+        <span>Vibrato
+          <span class="anahtar__not">Flüt tınısına canlılık verir; kapatmak eşleştirmeyi biraz kolaylaştırır.</span>
+        </span>
+      </label>
+
+      <label class="anahtar">
+        <input type="checkbox" id="ay-nefes" checked />
+        <span>Nefes gürültüsü
+          <span class="anahtar__not">Flütün üfleme sesi. Kapatınca ton daha çıplak duyulur.</span>
+        </span>
+      </label>
+    </div>
+
+    <div class="kart">
+      <div class="kart__baslik"><h2>Oyun</h2></div>
+
+      <label class="anahtar">
+        <input type="checkbox" id="ay-uyarlanir" checked />
+        <span>Uyarlanır zorluk
+          <span class="anahtar__not">İyi gittikçe tolerans daralır, zorlanınca gevşer.</span>
+        </span>
+      </label>
+
+      <label class="anahtar">
+        <input type="checkbox" id="ay-kilit" />
+        <span>Kilitleri yok say
+          <span class="anahtar__not">Aşama 2 ve 3'ü koşulsuz açar. İlerleyişi merak ediyorsan ya da sırf denemek istiyorsan.</span>
+        </span>
+      </label>
+
+      <div class="alan" style="margin-top:14px">
+        <label class="alan__etiket" for="ay-asama"><span>Aşama</span></label>
+        <select id="ay-asama"></select>
+        <p class="anahtar__not" style="margin-top:6px" id="ay-asama-not"></p>
+      </div>
+    </div>
+
+    <div class="kart">
+      <div class="kart__baslik"><h2>Verilerin</h2></div>
+      <p class="aciklama">
+        Tüm ilerlemen yalnızca bu tarayıcıda, <code>localStorage</code> içinde tutulur —
+        hiçbir yere gönderilmez. Tarayıcı verilerini temizlersen kaybolur, o yüzden
+        arada bir dışa aktar.
+      </p>
+      <div class="btn-satir" style="margin-top:14px">
+        <button class="btn btn--kucuk" id="ay-disa" type="button">JSON olarak dışa aktar</button>
+        <button class="btn btn--kucuk" id="ay-ice" type="button">İçe aktar</button>
+        <button class="btn btn--kucuk btn--sade" id="ay-sifirla" type="button">Her şeyi sıfırla</button>
+      </div>
+      <input type="file" id="ay-dosya" accept="application/json,.json" hidden />
+      <p class="aciklama" id="ay-veri-durum" style="margin-top:10px"></p>
+    </div>
+
+  </section>
+
+  <footer class="alt">
+    <kbd>←</kbd> <kbd>→</kbd> ince ayar (1 cent) · <kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> kaba ayar (10 cent) ·
+    <kbd>Boşluk</kbd> hedefi çal · <kbd>B</kbd> kendi sesini çal · <kbd>Enter</kbd> kontrol et<br />
+    Tüm sesler tarayıcıda anlık üretilir — ses dosyası yok, sunucuya hiçbir şey gitmez.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+"use strict";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SABİTLER
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var KAYIT_ANAHTARI = "frekansOyun.v1";
+var KAYIT_SURUM = 1;
+
+var LA4 = 440;                       // La4 referansı
+var NOTA_ADLARI = ["Do","Do#","Re","Re#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"];
+
+/* Alt seviyeye göre "Mükemmel" toleransı (cent).
+   Ölçek gerçekçi: eğitimsiz kulak ~20-50 cent, eğitimli müzisyen ~5-10 cent ayırt eder. */
+var TOLERANSLAR = [25, 18, 12, 8, 5];
+
+/* Üç aşama. menzil = kaydırıcının ± cent açıklığı.
+   Aşama 1'de menzil bilerek bir oktavdan (1200 cent) dar: yeni başlayan biri
+   hedefin 2. harmoniğine kilitlenip oktav hatası yapamasın. */
+var ASAMALAR = [
+  { no: 1, ad: "Ayırt Etme", menzil: 300,  carpan: 1.0, minHz: 220, maxHz: 2000,
+    yonerge: "Hedef, 220–2000 Hz arasında serbest bir ton. Kaydırıcıyla kendi sesini ona eşitlemeye çalış. Tur boyunca iki ses aynı anda çalmaz; karar kesinleştiği an birlikte çalarlar ve duyduğun vuru, aradaki farkın kendisi olur." },
+  { no: 2, ad: "Aralık",     menzil: 600,  carpan: 1.5, minHz: 220, maxHz: 1400,
+    yonerge: "Bu aşamada hedef hiç çalınmaz: <strong>kök ses</strong> verilir, istenen aralığı sen kurarsın. Sesler ardışık duyulduğu için bu <em>ezgisel</em> aralık antrenmanıdır — aralığı hafızanda taşıman gerekir." },
+  { no: 3, ad: "Tuzaklar",   menzil: 1200, carpan: 2.0, minHz: 180, maxHz: 2200,
+    yonerge: "Menzil tam bir oktav — artık <strong>oktav hatası yapmak mümkün</strong>. Üstelik hedef bazen senden farklı tınıda çalar, yani tınıya güvenemezsin; temel frekansı bulman gerek." }
+];
+
+/* Aralık modunda kullanılan müzikal aralıklar */
+var ARALIKLAR = [
+  { cent:  200, ad: "büyük ikili",  yarim: 2 },
+  { cent:  300, ad: "küçük üçlü",   yarim: 3 },
+  { cent:  400, ad: "büyük üçlü",   yarim: 4 },
+  { cent:  500, ad: "tam dörtlü",   yarim: 5 },
+  { cent:  700, ad: "tam beşli",    yarim: 7 },
+  { cent:  900, ad: "büyük altılı", yarim: 9 },
+  { cent: 1200, ad: "oktav",        yarim: 12 }
+];
+
+/* Deneyim seviyesi, aşamadan bağımsız ikinci bir eksendir: aşama NEYİ
+   eşleştirdiğini, deneyim seviyesi HANGİ KURALLARLA eşleştirdiğini belirler.
+     hedefSure  = 0 ise hedef süresiz çalar (kullanıcı durdurur)
+     tekDinleme = hedefi tur başına yalnızca bir kez duyabilir
+     otoKontrol = kaydırıcı bırakıldığı an karar kesinleşir */
+var DENEYIMLER = [
+  { no: 1, ad: "Acemi", carpan: 1.0, hedefSure: 0, tekDinleme: false, otoKontrol: false,
+    uyari: "Hedefi istediğin kadar dinle, kaydırıcıyla dilediğince gidip gel. Kararı verince <strong>Kontrol Et!</strong>" },
+  { no: 2, ad: "Deneyimli", carpan: 1.4, hedefSure: 3, tekDinleme: true, otoKontrol: false,
+    uyari: "⚠️ Hedefi <strong>yalnızca bir kez, 3 saniye</strong> duyacaksın — durduramazsın, tekrar dinleyemezsin. Sonra kendi sesinle istediğin kadar çalışıp <strong>Kontrol Et!</strong> diyebilirsin." },
+  { no: 3, ad: "Uzman", carpan: 2.0, hedefSure: 2, tekDinleme: true, otoKontrol: true,
+    uyari: "⚠️ Hedefi <strong>yalnızca bir kez, 2 saniye</strong> duyacaksın. Sonra <strong>Benimkini Çal</strong>'a bas: kaydırıcıyı <strong>bıraktığın an karar kesinleşir</strong>. Bu, kulağının anlık isabetini ölçer. (Klavyeyle: ayarla, <kbd>Enter</kbd> ile kesinleştir.)" }
+];
+
+var RUTBELER = [
+  { xp:     0, ad: "Çaylak Kulak" },
+  { xp:   600, ad: "Duyarlı Kulak" },
+  { xp:  2000, ad: "Akortçu" },
+  { xp:  5000, ad: "Diyapazon" },
+  { xp: 12000, ad: "Mutlak Kulak" }
+];
+
+/* İşitme testi merdiveni (Hz). Üst sınır çalışma anında Nyquist'e göre kırpılır. */
+var TEST_FREKANSLARI = [8000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000, 17500, 18000, 19000, 20000];
+
+var TEST_TON_SURE   = 1.5;   // saniye
+var TEST_RAMPA      = 0.05;  // 50 ms — sert kesme geniş bantlı "tık" üretir, o tık duyulur
+var TUZAK_ORANI     = 0.25;  // denemelerin ~%25'i sessiz
+var TUZAK_MIN       = 4;     // güvenilirlik kararı için asgari sessiz deneme
+var TUZAK_ESIK      = 0.25;  // sessizde "duydum" oranı bunu aşarsa sonuç güvenilmez
+
+var MASTER_TAVAN    = 0.25;  // kullanıcı kaydırıcısı bu tavanın altında gezer
+
+/* İlerleme panelindeki bant grafiği için frekans kovaları */
+var BANTLAR = [
+  { ad: "250",  alt:    0, ust:  354 },
+  { ad: "500",  alt:  354, ust:  707 },
+  { ad: "1k",   alt:  707, ust: 1414 },
+  { ad: "2k",   alt: 1414, ust: 2828 },
+  { ad: "4k",   alt: 2828, ust: 5657 },
+  { ad: "8k",   alt: 5657, ust: 99999 }
+];
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MÜZİK MATEMATİĞİ
+
+   Perde algısı logaritmiktir, o yüzden her yerde Hz değil CENT kullanılır.
+   1 oktav = 1200 cent, 1 yarım ses = 100 cent.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function centArasi(f1, f2) {
+  return 1200 * Math.log2(f2 / f1);
+}
+
+function centtenFrekans(fRef, cent) {
+  return fRef * Math.pow(2, cent / 1200);
+}
+
+/* En yakın eşit tamperamanlı notayı ve ondan sapmayı bulur. */
+function enYakinNota(f) {
+  var n = 69 + 12 * Math.log2(f / LA4);        // MIDI nota numarası (69 = La4)
+  var yuvarlak = Math.round(n);
+  var notaHz = LA4 * Math.pow(2, (yuvarlak - 69) / 12);
+  return {
+    ad: NOTA_ADLARI[((yuvarlak % 12) + 12) % 12],
+    oktav: Math.floor(yuvarlak / 12) - 1,
+    cent: centArasi(notaHz, f),
+    frekans: notaHz,
+    midi: yuvarlak
+  };
+}
+
+function notaMetni(f) {
+  var n = enYakinNota(f);
+  var sapma = n.cent >= 0 ? "+" : "−";
+  return n.ad + n.oktav + " " + sapma + Math.abs(n.cent).toFixed(0) + "¢";
+}
+
+function hzMetin(f) {
+  if (f >= 10000) return (f / 1000).toFixed(1) + " kHz";
+  if (f >= 1000)  return f.toFixed(1) + " Hz";
+  return f.toFixed(2) + " Hz";
+}
+
+function centMetin(c) {
+  var isaret = c > 0 ? "+" : (c < 0 ? "−" : "");
+  return isaret + Math.abs(c).toFixed(1) + " cent";
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PUANLAMA
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* |hata| <= T mükemmel, <= 2T iyi, <= 4T yakın, üstü ıska. */
+function bantHesapla(hataCent, T) {
+  var e = Math.abs(hataCent);
+  if (e <= T)     return { bant: "mukemmel", etiket: "Mükemmel", puan: 100 };
+  if (e <= 2 * T) return { bant: "iyi",      etiket: "İyi",      puan:  60 };
+  if (e <= 4 * T) return { bant: "yakin",    etiket: "Yakın",    puan:  25 };
+  return            { bant: "iska",     etiket: "Iskaladın", puan:   0 };
+}
+
+/* Tur puanı = bant × aşama çarpanı × seri bonusu.
+   Görsel ipucu cezası kaldırıldı: ekranda cezalandırılacak bir ipucu kalmadı,
+   iki ses hiç birlikte çalmadığı için karşılaştırma tamamen kulakla yapılıyor. */
+function turPuani(hataCent, T, asamaCarpan, seri, deneyimCarpan) {
+  var b = bantHesapla(hataCent, T);
+  var seriBonus = 1 + Math.min(seri, 10) * 0.05;
+  var dc = deneyimCarpan === undefined ? 1 : deneyimCarpan;
+  return {
+    bant: b.bant,
+    etiket: b.etiket,
+    ham: b.puan,
+    seriBonus: seriBonus,
+    deneyimCarpan: dc,
+    puan: Math.round(b.puan * asamaCarpan * dc * seriBonus)
+  };
+}
+
+function rutbeBul(xp) {
+  var simdi = RUTBELER[0], sonraki = null;
+  for (var i = 0; i < RUTBELER.length; i++) {
+    if (xp >= RUTBELER[i].xp) { simdi = RUTBELER[i]; sonraki = RUTBELER[i + 1] || null; }
+  }
+  var oran = 1;
+  if (sonraki) oran = (xp - simdi.xp) / (sonraki.xp - simdi.xp);
+  return { ad: simdi.ad, sonraki: sonraki, oran: Math.max(0, Math.min(1, oran)) };
+}
+
+/* Duyulan en yüksek frekanstan kaba yaş bandı.
+   Presbiakuzi tiz uçtan başladığı için bu eşleme "işitme yaşı" diye anılır —
+   halk arasındaki kaba bir ölçüttür, tıbbi değeri yoktur. */
+function isitmeYasi(hz) {
+  if (hz >= 19000) return "20 altı";
+  if (hz >= 17000) return "20–29";
+  if (hz >= 16000) return "30–39";
+  if (hz >= 15000) return "40–49";
+  if (hz >= 14000) return "50–59";
+  if (hz >= 12000) return "60–69";
+  return "70+";
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DEPOLAMA
+   localStorage kapalı olabilir (gizli sekme, katı gizlilik ayarı) — her
+   okuma/yazma sessizce düşer, uygulama çalışmaya devam eder.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function varsayilanKayit() {
+  return {
+    surum: KAYIT_SURUM,
+    profil: { olusturma: Date.now(), toplamXP: 0, asama: 1, altSeviye: 1, deneyim: 1 },
+    isitme: [],
+    jnd: [],
+    turlar: [],
+    ayarlar: {
+      sesSeviyesi: 60, vibrato: true,
+      nefes: true, uyarlanir: true, kulakAyri: false, kilitYok: false
+    }
+  };
+}
+
+var kayit = varsayilanKayit();
+
+function kayitYukle() {
+  var v = varsayilanKayit();
+  try {
+    var ham = localStorage.getItem(KAYIT_ANAHTARI);
+    if (!ham) return v;
+    var o = JSON.parse(ham);
+    if (!o || typeof o !== "object") return v;
+    // Alan alan birleştir: eksik/bozuk anahtarlar varsayılana düşsün
+    if (o.profil)  for (var a in v.profil)  if (o.profil[a]  !== undefined) v.profil[a]  = o.profil[a];
+    if (o.ayarlar) for (var b in v.ayarlar) if (o.ayarlar[b] !== undefined) v.ayarlar[b] = o.ayarlar[b];
+    if (Array.isArray(o.isitme)) v.isitme = o.isitme;
+    if (Array.isArray(o.jnd))    v.jnd    = o.jnd;
+    if (Array.isArray(o.turlar)) v.turlar = o.turlar;
+  } catch (e) { /* bozuk kayıt — varsayılanla devam */ }
+  return v;
+}
+
+function kayitYaz() {
+  try {
+    if (kayit.turlar.length > 500) kayit.turlar = kayit.turlar.slice(-500);
+    localStorage.setItem(KAYIT_ANAHTARI, JSON.stringify(kayit));
+    return true;
+  } catch (e) { return false; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SES MOTORU
+
+   Zincir:  kaynak → cikis (zarf) → panner → master (≤0.25) → limiter → hoparlör
+                                                 └→ analiz (vuru ölçer)
+
+   İki tasarım kararı burada gömülü:
+   1) Oyunda flüt tınısı (PeriodicWave), işitme testinde SAF SİNÜS kullanılır —
+      eşik ölçümünde tek ve bilinen bir frekans gerekir.
+   2) Zarf her yerde rampalıdır. 16 kHz'lik bir tonu sert kesmek geniş bantlı bir
+      "tık" üretir; kullanıcı tonu duymadığı halde tıkı duyup "duydum" der. Testin
+      en büyük sahte pozitif kaynağı budur.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var Ses = (function () {
+
+  var ctx = null, master = null, limiter = null;
+  var flutDalga = null, kamisDalga = null, gurultuTampon = null;
+  var seviye = 0.6;
+
+  /* Flüt spektrumu: temel güçlü, 2. harmonik zayıf, üstü hızla söner.
+     PeriodicWave implementasyonu oktav başına tablo kurduğu için aliasing olmaz. */
+  function dalgaYap(c, genlikler) {
+    var real = new Float32Array(genlikler.length);
+    var imag = new Float32Array(genlikler.length);
+    for (var i = 0; i < genlikler.length; i++) imag[i] = genlikler[i];
+    return c.createPeriodicWave(real, imag, { disableNormalization: false });
+  }
+
+  function gurultuYap(c) {
+    var n = Math.floor(c.sampleRate * 2);
+    var buf = c.createBuffer(1, n, c.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    return buf;
+  }
+
+  function kur() {
+    if (ctx) {
+      if (ctx.state === "suspended") { try { ctx.resume(); } catch (e) {} }
+      return ctx;
+    }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+
+    /* Limiter bir konfor değil güvenlik gereği: duyulmayan tiz tonların
+       yüksekliğini kullanıcı yargılayamaz, tavanı donanım değil biz koyarız. */
+    limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -6;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.003;
+    limiter.release.value = 0.1;
+
+    master = ctx.createGain();
+    master.gain.value = MASTER_TAVAN * seviye;
+
+    master.connect(limiter);
+    limiter.connect(ctx.destination);
+
+    flutDalga  = dalgaYap(ctx, [0, 1.0, 0.22, 0.08, 0.035, 0.015, 0.008]);
+    kamisDalga = dalgaYap(ctx, [0, 1.0, 0.50, 0.35, 0.25, 0.18, 0.12, 0.09, 0.06]);
+    gurultuTampon = gurultuYap(ctx);
+
+    return ctx;
+  }
+
+  /* Tıksız kapılama: mevcut değerden hedefe doğrusal rampa. */
+  function rampa(param, hedef, sure) {
+    var t = ctx.currentTime;
+    var simdi = param.value;
+    try { param.cancelScheduledValues(t); } catch (e) {}
+    param.setValueAtTime(simdi, t);
+    param.linearRampToValueAtTime(hedef, t + Math.max(0.005, sure));
+  }
+
+  function sesYarat(secenek) {
+    if (!kur()) return null;
+    var o = secenek || {};
+    var tini    = o.tini || "flut";
+    var vibrato = o.vibrato === true;
+    var nefes   = o.nefes === true;
+    var f0      = o.frekans || 440;
+    var duz     = (tini === "sinus");
+
+    var cikis = ctx.createGain();
+    cikis.gain.value = 0;
+
+    var panner = null;
+    if (ctx.createStereoPanner) {
+      panner = ctx.createStereoPanner();
+      panner.pan.value = o.pan || 0;
+      cikis.connect(panner);
+      panner.connect(master);
+    } else {
+      cikis.connect(master);
+    }
+
+    var osc = ctx.createOscillator();
+    if (duz) osc.type = "sine";
+    else osc.setPeriodicWave(tini === "kamis" ? kamisDalga : flutDalga);
+    osc.frequency.value = f0;
+    osc.connect(cikis);
+
+    /* Nefes gürültüsü: bandı temel frekansla birlikte hareket eder. */
+    var nSrc = null, nBp = null;
+    if (nefes && !duz) {
+      nSrc = ctx.createBufferSource();
+      nSrc.buffer = gurultuTampon;
+      nSrc.loop = true;
+      nBp = ctx.createBiquadFilter();
+      nBp.type = "bandpass";
+      nBp.frequency.value = Math.min(f0 * 2, ctx.sampleRate / 2 - 1000);
+      nBp.Q.value = 2;
+      var nG = ctx.createGain();
+      nG.gain.value = 0.03;
+      nSrc.connect(nBp); nBp.connect(nG); nG.connect(cikis);
+      try { nSrc.start(); } catch (e) {}
+    }
+
+    /* Vibrato: 5 Hz, ±8 cent. detune cent cinsinden olduğu için doğrudan bağlanır. */
+    var lfo = null;
+    if (vibrato && !duz) {
+      lfo = ctx.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.value = 5;
+      var lfoG = ctx.createGain();
+      lfoG.gain.value = 8;
+      lfo.connect(lfoG); lfoG.connect(osc.detune);
+      try { lfo.start(); } catch (e) {}
+    }
+
+    try { osc.start(); } catch (e) {}
+
+    return {
+      /* Kaydırıcı hareket ederken frekans ASLA sıçratılmaz — ~30 ms glide.
+         Sıçratılırsa fermuar gürültüsü çıkar ve eşleştirmenin dayandığı
+         vuru algısı bozulur. */
+      frekansAyarla: function (f, ani) {
+        if (!ctx) return;
+        var t = ctx.currentTime;
+        var bpF = Math.min(f * 2, ctx.sampleRate / 2 - 1000);
+        if (ani) {
+          osc.frequency.setValueAtTime(f, t);
+          if (nBp) nBp.frequency.setValueAtTime(bpF, t);
+        } else {
+          osc.frequency.setTargetAtTime(f, t, 0.012);
+          if (nBp) nBp.frequency.setTargetAtTime(bpF, t, 0.012);
+        }
+      },
+      ac:   function (hacim, sure) { rampa(cikis.gain, hacim === undefined ? 1 : hacim, sure === undefined ? 0.06 : sure); },
+      kapa: function (sure) { rampa(cikis.gain, 0, sure === undefined ? 0.12 : sure); },
+      panAyarla: function (p) { if (panner) panner.pan.setValueAtTime(p, ctx.currentTime); },
+      yokEt: function () {
+        var t = ctx.currentTime + 0.3;
+        try { osc.stop(t); } catch (e) {}
+        if (lfo)  try { lfo.stop(t); }  catch (e) {}
+        if (nSrc) try { nSrc.stop(t); } catch (e) {}
+        setTimeout(function () {
+          try { cikis.disconnect(); } catch (e) {}
+          if (panner) try { panner.disconnect(); } catch (e) {}
+        }, 450);
+      }
+    };
+  }
+
+  /* Tek atımlık ton — işitme testi ve ayırt etme merdiveni bunu kullanır.
+     Söz verisi (Promise) ton tamamen susunca çözülür. */
+  function tonCal(frekans, sure, secenek) {
+    var o = secenek || {};
+    var r = o.rampa === undefined ? 0.02 : o.rampa;
+    var v = sesYarat({
+      frekans: frekans,
+      tini: o.tini || "sinus",
+      vibrato: false,
+      nefes: false,
+      pan: o.pan || 0
+    });
+    if (!v) return Promise.resolve();
+
+    v.ac(o.hacim === undefined ? 1 : o.hacim, r);
+    return new Promise(function (coz) {
+      setTimeout(function () {
+        v.kapa(r);
+        setTimeout(function () { v.yokEt(); coz(); }, r * 1000 + 80);
+      }, Math.max(10, (sure - r) * 1000));
+    });
+  }
+
+  function bekle(ms) {
+    return new Promise(function (coz) { setTimeout(coz, ms); });
+  }
+
+  return {
+    kur: kur,
+    sesYarat: sesYarat,
+    tonCal: tonCal,
+    bekle: bekle,
+    seviyeAyarla: function (yuzde) {
+      seviye = Math.max(0, Math.min(1, yuzde / 100));
+      if (master && ctx) master.gain.setTargetAtTime(MASTER_TAVAN * seviye, ctx.currentTime, 0.02);
+    },
+    /* Testin üst sınırı donanımın örnekleme hızıyla kısıtlı: Nyquist'in altında
+       güvenli bir pay bırakılır. */
+    ustSinir: function () {
+      if (!ctx) return 20000;
+      return Math.min(20000, Math.floor(ctx.sampleRate / 2 - 1500));
+    },
+    durum: function () { return ctx ? ctx.state : "yok"; },
+    ornekHizi: function () { return ctx ? ctx.sampleRate : 0; },
+    ctx: function () { return ctx; }
+  };
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KISA YARDIMCILAR
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function $(id) { return document.getElementById(id); }
+
+function ortalama(dizi) {
+  if (!dizi.length) return 0;
+  var t = 0;
+  for (var i = 0; i < dizi.length; i++) t += dizi[i];
+  return t / dizi.length;
+}
+
+function tarihMetin(zaman) {
+  var d = new Date(zaman);
+  return d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "2-digit" });
+}
+
+/* Retina destekli tuval ölçekleme — çizim CSS pikseliyle yapılır. */
+function tuvalHazirla(cv) {
+  var r = cv.getBoundingClientRect();
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var w = Math.max(1, Math.round(r.width * dpr));
+  var h = Math.max(1, Math.round(r.height * dpr));
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  var c = cv.getContext("2d");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.clearRect(0, 0, r.width, r.height);
+  return { c: c, g: r.width, y: r.height };
+}
+
+function stil(ad) {
+  return getComputedStyle(document.documentElement).getPropertyValue(ad).trim();
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EŞLEŞTİRME OYUNU
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var oyun = {
+  asama: 1, altSeviye: 1, deneyim: 1,
+  hedefHz: 440, kokHz: 0, aralik: null, hedefTini: "flut",
+  merkezHz: 440, baslangicCent: 0, oyuncuCent: 0,
+  seri: 0, puan: 0, turSayisi: 0,
+  sonHatalar: [], dususSeri: 0,
+  turAcik: false,
+  hedefDinlendi: false,      // tek dinleme hakkı kullanıldı mı
+  uzmanSilahli: false,       // Uzman: kaydırıcı bırakılınca karar kesinleşecek
+  hedefZamanlayici: null     // süreli hedef çalmanın kapanma zamanlayıcısı
+};
+
+var sesHedef = null, sesBenim = null, calmaModu = null;
+
+function oyuncuHz() {
+  return centtenFrekans(oyun.merkezHz, oyun.oyuncuCent);
+}
+
+function asamaBilgi()   { return ASAMALAR[oyun.asama - 1]; }
+function deneyimBilgi() { return DENEYIMLER[oyun.deneyim - 1]; }
+
+/* --- Aşama kilitleri -------------------------------------------------------
+   Kilitler ilerlemeyi anlamlı kılar ama kimseyi hapsetmemeli: Ayarlar'daki
+   "kilitleri yok say" her zaman açık bir kapı bırakır. */
+function enIyiJnd() {
+  var e = null;
+  for (var i = 0; i < kayit.jnd.length; i++) {
+    if (e === null || kayit.jnd[i].cent < e) e = kayit.jnd[i].cent;
+  }
+  return e;
+}
+
+function zirve(asamaNo) {
+  var z = kayit.profil.asamaZirve || {};
+  return z[String(asamaNo)] || 1;
+}
+
+function zirveGuncelle() {
+  if (!kayit.profil.asamaZirve) kayit.profil.asamaZirve = {};
+  var k = String(oyun.asama);
+  var m = kayit.profil.asamaZirve[k] || 1;
+  if (oyun.altSeviye > m) kayit.profil.asamaZirve[k] = oyun.altSeviye;
+}
+
+function asamaAcik(no) {
+  if (no === 1) return true;
+  if (kayit.ayarlar.kilitYok) return true;
+  var j = enIyiJnd();
+  if (no === 2) return zirve(1) >= 3 && j !== null && j <= 25;
+  if (no === 3) return zirve(2) >= 3 && j !== null && j <= 15;
+  return false;
+}
+
+function kilitAciklama(no) {
+  if (no === 2) return "Aşama 1'de seviye 3'e çık ve ayırt etme eşiğini 25 cent'in altına indir.";
+  if (no === 3) return "Aşama 2'de seviye 3'e çık ve ayırt etme eşiğini 15 cent'in altına indir.";
+  return "";
+}
+
+/* --- Tur kurulumu --------------------------------------------------------- */
+function turBaslat() {
+  calmayiDurdur();
+  var A = asamaBilgi();
+
+  // Log-tekdüze hedef seçimi: her oktav eşit olasılıkla temsil edilsin
+  var hz = A.minHz * Math.pow(A.maxHz / A.minHz, Math.random());
+
+  oyun.hedefTini = "flut";
+  oyun.kokHz = 0;
+  oyun.aralik = null;
+
+  if (oyun.asama === 2) {
+    // Aralık modu: hedef çalınmaz, kök ses çalınır; hedefi kullanıcı kurar
+    oyun.kokHz = hz;
+    oyun.aralik = ARALIKLAR[Math.floor(Math.random() * ARALIKLAR.length)];
+    oyun.hedefHz = centtenFrekans(oyun.kokHz, oyun.aralik.cent);
+  } else {
+    oyun.hedefHz = hz;
+    // Tuzak: hedef bazen farklı tınıda çalar, tınıya güvenilemez
+    if (oyun.asama === 3 && Math.random() < 0.5) oyun.hedefTini = "kamis";
+  }
+
+  /* Kaydırıcının 0 konumu hedefe göre kaydırılır ki cevap hep ortada olmasın.
+     Sapma menzilin %20-%80'i arası: her zaman menzil içinde ulaşılabilir. */
+  var buyukluk = A.menzil * (0.2 + Math.random() * 0.6);
+  oyun.baslangicCent = (Math.random() < 0.5 ? -1 : 1) * buyukluk;
+  oyun.merkezHz = centtenFrekans(oyun.hedefHz, oyun.baslangicCent);
+  oyun.oyuncuCent = 0;
+  oyun.turAcik = true;
+  oyun.hedefDinlendi = false;      // dinleme hakkı her tur yenilenir
+  oyun.uzmanSilahli = false;
+
+  var k = $("kaydirici");
+  k.min = String(-A.menzil);
+  k.max = String(A.menzil);
+  k.value = "0";
+  k.disabled = false;                       // yeni turda ayar yeniden serbest
+
+  $("sonuc-kart").classList.remove("acik");
+  $("btn-kontrol").disabled = false;
+  arayuzTazele();
+}
+
+/* --- Çalma ---------------------------------------------------------------- */
+function calmayiDurdur() {
+  if (oyun.hedefZamanlayici) { clearTimeout(oyun.hedefZamanlayici); oyun.hedefZamanlayici = null; }
+  if (sesHedef) { sesHedef.kapa(0.08); sesHedef.yokEt(); sesHedef = null; }
+  if (sesBenim) { sesBenim.kapa(0.08); sesBenim.yokEt(); sesBenim = null; }
+  calmaModu = null;
+  butonlariTazele();
+}
+
+/* Tur SIRASINDA tek seferde tek ses çalar: iki sesi birlikte çalmak vuru üretir
+   ve vuru cevabı doğrudan ele verirdi. Karşılaştırma ardışık dinlemeyle yapılır.
+   Birleşik ses ("birlikte") yalnızca Kontrol Et'ten SONRA, hükmü duyurmak için
+   çalar — orada vibrato kapatılır, çünkü ±8 cent'lik vibrato 3 cent'lik bir
+   hatanın vurusunu tümden örterdi. */
+function cal(mod) {
+  if (!Ses.kur()) return;
+  if (calmaModu === mod) { calmayiDurdur(); return; }
+  calmayiDurdur();
+  calmaModu = mod;
+
+  var ort = { vibrato: kayit.ayarlar.vibrato, nefes: kayit.ayarlar.nefes };
+
+  var D = deneyimBilgi();
+
+  if (mod === "hedef") {
+    if (D.tekDinleme && oyun.hedefDinlendi) { calmaModu = null; return; }   // hak bitti
+    // Aşama 2'de bu buton kök sesi çalar — hedefin kendisi hiç duyulmaz
+    var ustHz = (oyun.asama === 2) ? oyun.kokHz : oyun.hedefHz;
+    sesHedef = Ses.sesYarat({ frekans: ustHz, tini: oyun.hedefTini, vibrato: ort.vibrato, nefes: ort.nefes });
+    if (sesHedef) sesHedef.ac(0.85, 0.06);
+
+    /* Süreli dinleme: ton kendi kapanır ve süre boyunca durdurulamaz.
+       Kesilebilir olsaydı yanlışlıkla çift tıklama tek dinleme hakkını
+       sıfır saniyede yakardı. */
+    if (D.hedefSure > 0) {
+      oyun.hedefDinlendi = true;
+      oyun.hedefZamanlayici = setTimeout(function () {
+        oyun.hedefZamanlayici = null;
+        if (sesHedef) { sesHedef.kapa(0.1); sesHedef.yokEt(); sesHedef = null; }
+        calmaModu = null;
+        butonlariTazele();
+      }, D.hedefSure * 1000);
+    }
+  } else if (mod === "benim") {
+    sesBenim = Ses.sesYarat({ frekans: oyuncuHz(), tini: "flut", vibrato: ort.vibrato, nefes: ort.nefes });
+    if (sesBenim) sesBenim.ac(0.85, 0.06);
+    // Uzman: bundan sonra kaydırıcıyı bırakmak kararı kesinleştirir
+    if (D.otoKontrol && oyun.turAcik) oyun.uzmanSilahli = true;
+  } else if (mod === "birlikte") {
+    sesHedef = Ses.sesYarat({ frekans: oyun.hedefHz, tini: oyun.hedefTini, vibrato: false, nefes: ort.nefes });
+    sesBenim = Ses.sesYarat({ frekans: oyuncuHz(),  tini: "flut",          vibrato: false, nefes: ort.nefes });
+    if (sesHedef) sesHedef.ac(0.6, 0.06);
+    if (sesBenim) sesBenim.ac(0.6, 0.06);
+  }
+
+  butonlariTazele();
+}
+
+/* --- Kontrol Et! ---------------------------------------------------------- */
+function kontrolEt() {
+  if (!oyun.turAcik) return;
+  calmayiDurdur();
+
+  var oHz = oyuncuHz();
+  var hata = centArasi(oyun.hedefHz, oHz);
+  var T = TOLERANSLAR[oyun.altSeviye - 1];
+  var A = asamaBilgi();
+  var DN = deneyimBilgi();
+  var s = turPuani(hata, T, A.carpan, oyun.seri, DN.carpan);
+  oyun.uzmanSilahli = false;
+
+  if (s.ham > 0) oyun.seri++; else oyun.seri = 0;
+  oyun.puan += s.puan;
+  oyun.turSayisi++;
+  oyun.turAcik = false;
+
+  kayit.profil.toplamXP += s.puan;
+  kayit.turlar.push({
+    tarih: Date.now(),
+    asama: oyun.asama,
+    deneyim: oyun.deneyim,
+    hedefHz: Math.round(oyun.hedefHz * 10) / 10,
+    hataCent: Math.round(hata * 10) / 10,
+    puan: s.puan
+  });
+
+  zorlukAyarla(hata, T);
+  zirveGuncelle();
+  kayit.profil.asama = oyun.asama;
+  kayit.profil.altSeviye = oyun.altSeviye;
+  kayitYaz();
+
+  /* Kontrol Et son karardır: kaydırıcı kilitlenir ki cevabı gördükten sonra
+     düzeltme yapılamasın. Ölçüm bu anda kaydedilmiş olur. */
+  $("kaydirici").disabled = true;
+
+  sonucGoster(hata, s, oHz, T);
+  cal("birlikte");                          // hükmü duyur: iki ses birlikte
+  arayuzTazele();
+}
+
+function zorlukAyarla(hata, T) {
+  if (!kayit.ayarlar.uyarlanir) return;
+  var e = Math.abs(hata);
+
+  oyun.sonHatalar.push(e);
+  if (oyun.sonHatalar.length > 8) oyun.sonHatalar.shift();
+
+  oyun.dususSeri = (e > 1.8 * T) ? oyun.dususSeri + 1 : 0;
+
+  if (oyun.sonHatalar.length >= 8 && ortalama(oyun.sonHatalar) < 0.6 * T && oyun.altSeviye < 5) {
+    oyun.altSeviye++;
+    oyun.sonHatalar = [];
+    oyun.dususSeri = 0;
+  } else if (oyun.dususSeri >= 3 && oyun.altSeviye > 1) {
+    oyun.altSeviye--;
+    oyun.sonHatalar = [];
+    oyun.dususSeri = 0;
+  }
+}
+
+function sonucGoster(hata, s, oHz, T) {
+  var kart = $("sonuc-kart");
+  $("sonuc-bant").textContent = s.etiket;
+  $("sonuc-bant").className = "sonuc__bant sonuc__bant--" + s.bant;
+  $("sonuc-puan").textContent = "+" + s.puan;
+
+  $("dk-sapma").textContent = centMetin(hata);
+  $("dk-hedef").textContent = hzMetin(oyun.hedefHz);
+  $("dk-benim").textContent = hzMetin(oHz);
+  $("dk-nota").textContent  = notaMetni(oyun.hedefHz);
+
+  var parca = [];
+  var yon = hata > 0 ? "tiz" : "pes";
+  if (Math.abs(hata) < 1) parca.push("Neredeyse tam üstünde.");
+  else parca.push("Sesin hedeften " + Math.abs(hata).toFixed(1) + " cent " + yon + " kaldı.");
+  parca.push("Bu seviyede mükemmel sayılmak için ±" + T + " cent gerekiyor.");
+  if (s.seriBonus > 1) parca.push("Seri bonusu ×" + s.seriBonus.toFixed(2) + ".");
+  if (s.deneyimCarpan > 1) parca.push(deneyimBilgi().ad + " çarpanı ×" + s.deneyimCarpan + ".");
+  parca.push("<em>Şimdi iki ses birlikte çalıyor — duyduğun vuru, aradaki farkın kendisi.</em>");
+  if (oyun.asama === 2 && oyun.aralik) {
+    parca.push("İstenen aralık: " + oyun.aralik.ad + " (" + oyun.aralik.yarim + " yarım ses).");
+  }
+  if (oyun.asama === 3 && oyun.hedefTini === "kamis") {
+    parca.push("Hedef bu turda farklı tınıdaydı.");
+  }
+  $("sonuc-ozet").innerHTML = parca.join(" ");
+
+  kart.classList.add("acik");
+  kadranCiz(hata, T);
+  kart.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GÖRSELLEŞTİRME
+
+   Tur sırasında ekranda perde hakkında HİÇBİR görsel ipucu yoktur — ne cent
+   değeri, ne akort iğnesi, ne de dalga biçimi. Sabit zaman eksenli bir dalga
+   görüntüsü bile, iki sesin dalga boyunu gözle saydırarak kulağın yerine
+   geçebilirdi. Karşılaştırma kulakla yapılır; sapma ancak "Kontrol Et!"
+   sonrasında, kadranda açılır.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Yalnızca hangi sesin çaldığını bildirir — perde bilgisi taşımaz. */
+function calanTazele() {
+  var kutu = $("calan-kutu"), nabiz = $("calan-nabiz"), metin = $("calan-metin");
+  if (!kutu) return;
+  kutu.classList.remove("calan--hedef", "calan--benim");
+  if (calmaModu === "hedef") {
+    kutu.classList.add("calan--hedef");
+    nabiz.classList.add("aktif");
+    metin.textContent = (oyun.asama === 2 ? "Kök ses çalıyor" : "Hedef ses çalıyor");
+  } else if (calmaModu === "benim") {
+    kutu.classList.add("calan--benim");
+    nabiz.classList.add("aktif");
+    metin.textContent = "Senin sesin çalıyor";
+  } else if (calmaModu === "birlikte") {
+    nabiz.classList.add("aktif");
+    metin.textContent = "İki ses birlikte — vuru ne kadar yavaşsa o kadar yakınsın";
+  } else {
+    nabiz.classList.remove("aktif");
+    metin.textContent = "Hiçbir şey çalmıyor";
+  }
+}
+
+/* --- Sonuç kadranı (yalnızca kontrol sonrası) ------------------------------ */
+function kadranCiz(hata, T) {
+  var cv = $("kadran-tuval");
+  if (!cv) return;
+  var t = tuvalHazirla(cv), c = t.c, G = t.g, Y = t.y;
+  var cx = G / 2, cy = Y - 6, r = Math.min(G / 2 - 14, Y - 16);
+  if (r <= 10) return;
+
+  var tam = 4 * T;                                  // ölçek sonu = "yakın" sınırı
+  function aci(cent) {
+    var x = Math.max(-1, Math.min(1, cent / tam));
+    return -Math.PI + (x + 1) / 2 * Math.PI;
+  }
+  function yay(c1, c2, renk, kalinlik) {
+    c.beginPath();
+    c.arc(cx, cy, r, aci(c1), aci(c2));
+    c.strokeStyle = renk; c.lineWidth = kalinlik; c.lineCap = "butt";
+    c.stroke();
+  }
+
+  /* Ölçek çentikleri — VU kadranı gibi, yayın dışına doğru */
+  var cent5 = tam / 5;
+  for (var ti = -5; ti <= 5; ti++) {
+    var ta = aci(ti * cent5);
+    /* Çentikler renkli bandın İÇİNE bakar; dışarı çizilseydi 76px'lik
+       tuvalin üstünden taşarlardı. */
+    var icR = r - 9, disR = r - (ti === 0 ? 19 : (Math.abs(ti) === 5 ? 17 : 14));
+    c.beginPath();
+    c.moveTo(cx + Math.cos(ta) * icR, cy + Math.sin(ta) * icR);
+    c.lineTo(cx + Math.cos(ta) * disR, cy + Math.sin(ta) * disR);
+    c.strokeStyle = (ti === 0) ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.18)";
+    c.lineWidth = (ti === 0) ? 2 : 1;
+    c.stroke();
+  }
+
+  yay(-tam, -2 * T, "#5d4a1d", 11);
+  yay(-2 * T, -T,   "#5c7526", 11);
+  yay(-T, T,        "#3f9c5f", 13);
+  yay(T, 2 * T,     "#5c7526", 11);
+  yay(2 * T, tam,   "#5d4a1d", 11);
+
+  // Merkez işareti
+  c.beginPath();
+  c.moveTo(cx, cy - r - 8); c.lineTo(cx, cy - r + 16);
+  c.strokeStyle = "rgba(255,255,255,0.5)"; c.lineWidth = 1.5; c.stroke();
+
+  // İbre
+  var a = aci(hata);
+  var tasti = Math.abs(hata) > tam;
+  var ibreRenk = tasti ? "#f2686c"
+    : (Math.abs(hata) <= T ? "#4ade80" : (Math.abs(hata) <= 2 * T ? "#a3e635" : "#f5b544"));
+  c.beginPath();
+  c.moveTo(cx, cy);
+  c.lineTo(cx + Math.cos(a) * (r + 6), cy + Math.sin(a) * (r + 6));
+  c.strokeStyle = ibreRenk; c.lineWidth = 3; c.lineCap = "round";
+  c.stroke();
+
+  c.beginPath(); c.arc(cx, cy, 5, 0, Math.PI * 2);
+  c.fillStyle = ibreRenk; c.fill();
+
+  // Uç etiketleri
+  c.fillStyle = "rgba(255,255,255,0.32)";
+  c.font = "10px " + stil("--mono");
+  c.textBaseline = "top";
+  c.textAlign = "left";  c.fillText("−" + tam.toFixed(0) + "¢", 2, cy - r + 2);
+  c.textAlign = "right"; c.fillText("+" + tam.toFixed(0) + "¢", G - 2, cy - r + 2);
+  if (tasti) {
+    c.textAlign = "center";
+    c.fillStyle = "#f2686c";
+    c.fillText("ölçek dışı", cx, cy - r - 2);
+  }
+}
+
+/* --- İlerleme grafikleri --------------------------------------------------- */
+
+function cizgiGrafik(cv, degerler, secenek) {
+  var o = secenek || {};
+  var t = tuvalHazirla(cv), c = t.c, G = t.g, Y = t.y;
+  if (!degerler.length) return;
+
+  var sol = 34, sag = 8, ust = 10, altPay = 20;
+  var gg = G - sol - sag, yy = Y - ust - altPay;
+  if (gg <= 0 || yy <= 0) return;
+
+  var enB = Math.max.apply(null, degerler);
+  var enK = Math.min.apply(null, degerler);
+  if (o.tabanSifir) enK = 0;
+  var pay = (enB - enK) * 0.15 || 1;
+  var ustD = enB + pay, altD = Math.max(0, enK - pay);
+  if (ustD === altD) ustD = altD + 1;
+
+  function py(v) { return ust + yy - ((v - altD) / (ustD - altD)) * yy; }
+  function px(i) { return sol + (degerler.length === 1 ? gg / 2 : (i / (degerler.length - 1)) * gg); }
+
+  // Izgara ve eksen etiketleri
+  c.font = "10px " + stil("--mono");
+  c.fillStyle = "rgba(255,255,255,0.30)";
+  c.textAlign = "right"; c.textBaseline = "middle";
+  for (var s = 0; s <= 3; s++) {
+    var v = altD + (ustD - altD) * (s / 3), y = py(v);
+    c.strokeStyle = "rgba(255,255,255,0.06)"; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(sol, y + 0.5); c.lineTo(G - sag, y + 0.5); c.stroke();
+    c.fillText(v.toFixed(v < 10 ? 1 : 0), sol - 6, y);
+  }
+
+  var renk = o.renk || "#4ade80";
+
+  // Alan dolgusu
+  var grad = c.createLinearGradient(0, ust, 0, ust + yy);
+  grad.addColorStop(0, o.dolgu || "rgba(74,222,128,0.22)");
+  grad.addColorStop(1, "rgba(74,222,128,0)");
+  c.beginPath();
+  c.moveTo(px(0), ust + yy);
+  for (var i = 0; i < degerler.length; i++) c.lineTo(px(i), py(degerler[i]));
+  c.lineTo(px(degerler.length - 1), ust + yy);
+  c.closePath();
+  c.fillStyle = grad; c.fill();
+
+  // Çizgi
+  c.beginPath();
+  for (var j = 0; j < degerler.length; j++) {
+    var x = px(j), y2 = py(degerler[j]);
+    if (j === 0) c.moveTo(x, y2); else c.lineTo(x, y2);
+  }
+  c.strokeStyle = renk; c.lineWidth = 2; c.lineJoin = "round"; c.stroke();
+
+  // Noktalar (az sayıdaysa)
+  if (degerler.length <= 30) {
+    for (var k = 0; k < degerler.length; k++) {
+      c.beginPath(); c.arc(px(k), py(degerler[k]), 3, 0, Math.PI * 2);
+      c.fillStyle = renk; c.fill();
+      c.strokeStyle = "#0f1115"; c.lineWidth = 1.5; c.stroke();
+    }
+  }
+
+  // Alt etiketler
+  c.fillStyle = "rgba(255,255,255,0.30)";
+  c.textBaseline = "top";
+  c.textAlign = "left";  c.fillText(o.solEtiket || "eski", sol, ust + yy + 6);
+  c.textAlign = "right"; c.fillText(o.sagEtiket || "yeni", G - sag, ust + yy + 6);
+}
+
+function cubukGrafik(cv, oge) {
+  var t = tuvalHazirla(cv), c = t.c, G = t.g, Y = t.y;
+  if (!oge.length) return;
+
+  var sol = 30, sag = 8, ust = 8, altPay = 22;
+  var gg = G - sol - sag, yy = Y - ust - altPay;
+  if (gg <= 0 || yy <= 0) return;
+
+  c.font = "10px " + stil("--mono");
+  c.textAlign = "right"; c.textBaseline = "middle";
+  for (var s = 0; s <= 2; s++) {
+    var v = (s / 2) * 100, y = ust + yy - (v / 100) * yy;
+    c.strokeStyle = "rgba(255,255,255,0.06)"; c.lineWidth = 1;
+    c.beginPath(); c.moveTo(sol, y + 0.5); c.lineTo(G - sag, y + 0.5); c.stroke();
+    c.fillStyle = "rgba(255,255,255,0.30)";
+    c.fillText(v.toFixed(0), sol - 6, y);
+  }
+
+  var genislik = gg / oge.length;
+  for (var i = 0; i < oge.length; i++) {
+    var o = oge[i];
+    var h = (o.deger / 100) * yy;
+    var x = sol + i * genislik + genislik * 0.2;
+    var w = genislik * 0.6;
+    var renk = o.veriYok ? "rgba(255,255,255,0.10)"
+      : (o.deger >= 70 ? "#4ade80" : (o.deger >= 40 ? "#f5b544" : "#f2686c"));
+    c.fillStyle = renk;
+    var yTop = ust + yy - h;
+    var rr = Math.min(4, w / 2, h || 0);
+    c.beginPath();
+    if (c.roundRect) { c.roundRect(x, yTop, w, Math.max(h, 1), [rr, rr, 0, 0]); }
+    else { c.rect(x, yTop, w, Math.max(h, 1)); }
+    c.fill();
+
+    c.fillStyle = "rgba(255,255,255,0.45)";
+    c.textAlign = "center"; c.textBaseline = "top";
+    c.fillText(o.ad, x + w / 2, ust + yy + 7);
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AYIRT ETME (JND)
+
+   2 aralıklı zorunlu seçim + 2-aşağı-1-yukarı merdiven. Bu merdiven %70.7
+   doğruluk eşiğine yakınsar; eşik, son 6 dönüş noktasının geometrik ortalaması.
+   Tonlarda vibrato KAPALI — ±8 cent'lik bir vibrato, 5 cent'lik bir eşik
+   ölçümünü tümden anlamsız kılardı.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var JND_DONUS_HEDEF = 8;
+var JND_MAX_DENEME  = 60;
+
+var jnd = null;
+
+function jndSifir(bant) {
+  return {
+    aktif: true, bant: bant, delta: 100,
+    dogruUstUste: 0, yon: null, donusler: [], adimCarpan: 2.0,
+    deneme: 0, hedefSira: 1, dinleniyor: false
+  };
+}
+
+function jndBaslat(bant) {
+  if (!Ses.kur()) return;
+  jnd = jndSifir(bant);
+  $("ayirt-tanitim").hidden = true;
+  $("ayirt-sonuc").hidden = true;
+  $("ayirt-akis").hidden = false;
+  jndDeneme();
+}
+
+function jndDeneme() {
+  jnd.deneme++;
+  jnd.hedefSira = Math.random() < 0.5 ? 1 : 2;
+  $("ayirt-sayac").textContent = "Deneme " + jnd.deneme + " · dönüş " + jnd.donusler.length + "/" + JND_DONUS_HEDEF;
+  $("ayirt-ilerleme").style.width = Math.round(jnd.donusler.length / JND_DONUS_HEDEF * 100) + "%";
+  jndCal();
+}
+
+function jndCal() {
+  if (!jnd || jnd.dinleniyor) return;
+  jnd.dinleniyor = true;
+  $("ayirt-1").disabled = true;
+  $("ayirt-2").disabled = true;
+  $("ayirt-tekrar").disabled = true;
+  $("ayirt-nabiz").classList.add("aktif");
+
+  var pes = jnd.bant;
+  var tiz = centtenFrekans(jnd.bant, jnd.delta);
+  var ilk    = (jnd.hedefSira === 1) ? tiz : pes;
+  var ikinci = (jnd.hedefSira === 1) ? pes : tiz;
+  var ayar = { tini: "flut", rampa: 0.03, hacim: 0.85 };
+
+  $("ayirt-durum").textContent = "Birinci ton…";
+  Ses.tonCal(ilk, 0.5, ayar)
+    .then(function () { return Ses.bekle(250); })
+    .then(function () {
+      $("ayirt-durum").textContent = "İkinci ton…";
+      return Ses.tonCal(ikinci, 0.5, ayar);
+    })
+    .then(function () {
+      if (!jnd || !jnd.aktif) return;
+      jnd.dinleniyor = false;
+      $("ayirt-nabiz").classList.remove("aktif");
+      $("ayirt-durum").textContent = "Seç";
+      $("ayirt-1").disabled = false;
+      $("ayirt-2").disabled = false;
+      $("ayirt-tekrar").disabled = false;
+    });
+}
+
+function jndCevap(secim) {
+  if (!jnd || !jnd.aktif || jnd.dinleniyor) return;
+  var dogru = (secim === jnd.hedefSira);
+  var yeniYon = null;
+
+  if (dogru) {
+    jnd.dogruUstUste++;
+    if (jnd.dogruUstUste >= 2) { yeniYon = "asagi"; jnd.dogruUstUste = 0; }
+  } else {
+    jnd.dogruUstUste = 0;
+    yeniYon = "yukari";
+  }
+
+  if (yeniYon) {
+    if (jnd.yon && jnd.yon !== yeniYon) {
+      jnd.donusler.push(jnd.delta);                 // dönüş noktası: değişimden önceki fark
+      var n = jnd.donusler.length;
+      jnd.adimCarpan = (n >= 4) ? 1.19 : (n >= 2 ? 1.41 : 2.0);
+    }
+    jnd.yon = yeniYon;
+    jnd.delta = (yeniYon === "asagi")
+      ? Math.max(1, jnd.delta / jnd.adimCarpan)
+      : Math.min(600, jnd.delta * jnd.adimCarpan);
+  }
+
+  $("ayirt-not").textContent = dogru ? "Doğru." : "Yanlıştı — fark biraz açılıyor.";
+
+  if (jnd.donusler.length >= JND_DONUS_HEDEF || jnd.deneme >= JND_MAX_DENEME) { jndBitir(); return; }
+  jndDeneme();
+}
+
+function jndBitir() {
+  var d = jnd.donusler.slice(-6);
+  if (!d.length) d = [jnd.delta];
+  var top = 0;
+  for (var i = 0; i < d.length; i++) top += Math.log(d[i]);
+  var esik = Math.exp(top / d.length);
+
+  var oncekiEnIyi = null;
+  for (var k = 0; k < kayit.jnd.length; k++) {
+    if (kayit.jnd[k].bant === jnd.bant && (oncekiEnIyi === null || kayit.jnd[k].cent < oncekiEnIyi)) {
+      oncekiEnIyi = kayit.jnd[k].cent;
+    }
+  }
+
+  kayit.jnd.push({ tarih: Date.now(), bant: jnd.bant, cent: Math.round(esik * 10) / 10 });
+  kayitYaz();
+
+  $("ayirt-jnd").textContent = esik.toFixed(1);
+  $("ayirt-sonuc-bant").textContent = (jnd.bant >= 1000 ? (jnd.bant / 1000) + "k" : jnd.bant) + " Hz";
+  $("ayirt-onceki").textContent = oncekiEnIyi === null ? "—" : oncekiEnIyi.toFixed(1);
+
+  var yorum;
+  if (esik <= 8)       yorum = "Bu çok keskin bir sonuç — eğitimli müzisyen aralığındasın.";
+  else if (esik <= 15) yorum = "İyi bir eşik. Oyunun üst seviyeleri artık ulaşılabilir.";
+  else if (esik <= 30) yorum = "Ortalama bir kulak. Düzenli antrenmanla bu sayı hızla düşer.";
+  else                 yorum = "Başlangıç seviyesi. Pes bantlar (250 Hz) genelde daha kolaydır, oradan başlamayı dene.";
+
+  if (oncekiEnIyi !== null) {
+    if (esik < oncekiEnIyi) yorum += " Bu bantta önceki en iyini " + (oncekiEnIyi - esik).toFixed(1) + " cent geçtin.";
+    else yorum += " Önceki en iyin " + oncekiEnIyi.toFixed(1) + " cent'ti; günlük dalgalanma normaldir.";
+  }
+  $("ayirt-yorum").textContent = yorum;
+
+  jnd.aktif = false;
+  $("ayirt-akis").hidden = true;
+  $("ayirt-sonuc").hidden = false;
+  ilerlemeTazele();
+  arayuzTazele();
+}
+
+function jndVazgec() {
+  if (jnd) jnd.aktif = false;
+  $("ayirt-akis").hidden = true;
+  $("ayirt-tanitim").hidden = false;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   İŞİTME TESTİ
+
+   Merdiven yukarı doğru taranır; ilk "duymadım"da o frekans 3 denemeyle
+   doğrulanır. Denemelerin ~%25'i SESSİZDİR — sessizde "duydum" diyen bir
+   kullanıcının sonucu güvenilmez damgalanır. Beklenti yanlılığını kıran
+   ucuz ve dürüst yol budur.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var test = null;
+
+function testSifir(kulakAyri) {
+  var ust = Ses.ustSinir();
+  var liste = TEST_FREKANSLARI.filter(function (f) { return f <= ust; });
+  if (!liste.length) liste = [TEST_FREKANSLARI[0]];
+  return {
+    aktif: true,
+    kulaklar: kulakAyri ? ["sol", "sag"] : ["her"],
+    kulakIndeks: 0,
+    sonuclar: {},
+    freqler: liste,
+    indeks: 0,
+    durum: "tarama",
+    sonEvet: null,
+    dogrulamaHz: null, dogEvet: 0, dogToplam: 0,
+    tuzakToplam: 0, tuzakYanlis: 0,
+    suAnTuzak: false, suAnHz: 0,
+    denemeNo: 0, dinleniyor: false,
+    bekleyenSonuc: null,
+    tahmin: liste.length + 10
+  };
+}
+
+function testBaslat(kulakAyri) {
+  if (!Ses.kur()) return;
+  test = testSifir(kulakAyri);
+  $("test-tanitim").hidden = true;
+  $("test-sonuc").hidden = true;
+  $("test-akis").hidden = true;
+  $("test-kulaklik").hidden = false;
+  kulaklikBaslat();
+}
+
+/* --- Kulaklık doğrulaması -------------------------------------------------- */
+var kulaklik = null;
+
+function kulaklikBaslat() {
+  kulaklik = { tur: 0, dogru: 0, taraf: null, dinleniyor: false };
+  kulaklikDeneme();
+}
+
+function kulaklikDeneme() {
+  kulaklik.tur++;
+  kulaklik.taraf = Math.random() < 0.5 ? "sol" : "sag";
+  kulaklikCal();
+}
+
+function kulaklikCal() {
+  if (kulaklik.dinleniyor) return;
+  kulaklik.dinleniyor = true;
+  $("kulaklik-sol").disabled = true;
+  $("kulaklik-sag").disabled = true;
+  $("kulaklik-tekrar").disabled = true;
+  $("kulaklik-nabiz").classList.add("aktif");
+  $("kulaklik-durum").textContent = "Çalıyor…";
+
+  Ses.tonCal(600, 1.0, { tini: "flut", pan: kulaklik.taraf === "sol" ? -1 : 1, rampa: 0.04 })
+    .then(function () {
+      kulaklik.dinleniyor = false;
+      $("kulaklik-nabiz").classList.remove("aktif");
+      $("kulaklik-durum").textContent = "Hangi taraftan geldi?";
+      $("kulaklik-sol").disabled = false;
+      $("kulaklik-sag").disabled = false;
+      $("kulaklik-tekrar").disabled = false;
+    });
+}
+
+function kulaklikCevap(secim) {
+  if (kulaklik.dinleniyor) return;
+  if (secim === kulaklik.taraf) kulaklik.dogru++;
+
+  if (kulaklik.tur < 2) { kulaklikDeneme(); return; }
+
+  if (kulaklik.dogru < 2) {
+    $("kulaklik-durum").textContent = "Taraflar karıştı — kulaklık takılı olmayabilir.";
+    if (!confirm("Yön testini geçemedin. Kulaklık takılı değilse veya ters taktıysan sonuç anlamsız olur.\n\nYine de devam etmek istiyor musun?")) {
+      testVazgec();
+      return;
+    }
+  }
+  $("test-kulaklik").hidden = true;
+  $("test-akis").hidden = false;
+  testSonraki();
+}
+
+/* --- Frekans merdiveni ----------------------------------------------------- */
+function testSonraki() {
+  if (!test || !test.aktif) return;
+
+  /* Merdiven bitti ama asgari tuzak sayısına ulaşılmadıysa, karar vermeden
+     önce eksik sessiz denemeler tamamlanır. Aksi halde kısa süren testlerde
+     (işitme sınırı düşük olan kullanıcılarda) tuzak sayısı tesadüfen 2-3'te
+     kalıyor ve dürüst kullanıcı "güvenilmez" damgalanıyordu. */
+  if (test.durum === "tuzakTamamla") {
+    test.suAnTuzak = true;
+    testCal(0);
+    return;
+  }
+
+  // Tuzak denemesi: sessiz, ama akış birebir aynı görünür
+  if (test.tuzakToplam < 8 && Math.random() < TUZAK_ORANI) {
+    test.suAnTuzak = true;
+    testCal(0);
+    return;
+  }
+  test.suAnTuzak = false;
+
+  if (test.durum === "tarama") {
+    if (test.indeks >= test.freqler.length) {
+      testKulakBitir(test.sonEvet !== null ? test.sonEvet : test.freqler[test.freqler.length - 1]);
+      return;
+    }
+    test.suAnHz = test.freqler[test.indeks];
+  } else {
+    test.suAnHz = test.dogrulamaHz;
+  }
+  testCal(test.suAnHz);
+}
+
+function testCal(hz) {
+  test.denemeNo++;
+  test.dinleniyor = true;
+  $("test-evet").disabled = true;
+  $("test-hayir").disabled = true;
+  $("test-tekrar").disabled = true;
+  $("test-nabiz").classList.add("aktif");
+
+  var kulak = test.kulaklar[test.kulakIndeks];
+  var etiket = kulak === "her" ? "" : (kulak === "sol" ? " · sol kulak" : " · sağ kulak");
+  $("test-sayac").textContent = "Deneme " + test.denemeNo + etiket;
+  $("test-ilerleme").style.width = Math.min(100, Math.round(test.denemeNo / test.tahmin * 100)) + "%";
+  $("test-durum").textContent = "Dinle…";
+
+  var bitti = function () {
+    if (!test || !test.aktif) return;
+    test.dinleniyor = false;
+    $("test-nabiz").classList.remove("aktif");
+    $("test-durum").textContent = "Bir şey duydun mu?";
+    $("test-evet").disabled = false;
+    $("test-hayir").disabled = false;
+    $("test-tekrar").disabled = false;
+  };
+
+  if (hz === 0) {
+    // Sessiz deneme — süre birebir aynı
+    Ses.bekle(TEST_TON_SURE * 1000).then(bitti);
+  } else {
+    var pan = kulak === "sol" ? -1 : (kulak === "sag" ? 1 : 0);
+    Ses.tonCal(hz, TEST_TON_SURE, { tini: "sinus", pan: pan, rampa: TEST_RAMPA, hacim: 1 }).then(bitti);
+  }
+}
+
+function testCevap(duydu) {
+  if (!test || !test.aktif || test.dinleniyor) return;
+
+  if (test.suAnTuzak) {
+    test.tuzakToplam++;
+    if (duydu) test.tuzakYanlis++;
+    if (test.durum === "tuzakTamamla" && test.tuzakToplam >= TUZAK_MIN) {
+      test.durum = "tarama";
+      kulakSonucunuIsle(test.bekleyenSonuc);
+      return;
+    }
+    testSonraki();
+    return;
+  }
+
+  if (test.durum === "tarama") {
+    if (duydu) {
+      test.sonEvet = test.suAnHz;
+      test.indeks++;
+      testSonraki();
+    } else {
+      test.durum = "dogrulaBasarisiz";
+      test.dogrulamaHz = test.suAnHz;
+      test.dogEvet = 0;
+      test.dogToplam = 1;                    // taramadaki "hayır" da sayılır
+      testSonraki();
+    }
+    return;
+  }
+
+  test.dogToplam++;
+  if (duydu) test.dogEvet++;
+  if (test.dogToplam < 3) { testSonraki(); return; }
+
+  if (test.durum === "dogrulaBasarisiz") {
+    if (test.dogEvet >= 2) {
+      // Aslında duyuyormuş — taramaya kaldığı yerden devam
+      test.sonEvet = test.dogrulamaHz;
+      test.indeks = test.freqler.indexOf(test.dogrulamaHz) + 1;
+      test.durum = "tarama";
+    } else if (test.sonEvet === null) {
+      testKulakBitir(null);
+      return;
+    } else {
+      test.durum = "dogrulaSonEvet";
+      test.dogrulamaHz = test.sonEvet;
+      test.dogEvet = 0; test.dogToplam = 0;
+    }
+    testSonraki();
+    return;
+  }
+
+  // dogrulaSonEvet
+  if (test.dogEvet >= 2) {
+    testKulakBitir(test.sonEvet);
+  } else {
+    var i = test.freqler.indexOf(test.sonEvet);
+    testKulakBitir(i > 0 ? test.freqler[i - 1] : test.freqler[0]);
+  }
+}
+
+/* Kapı: yeterli sessiz deneme yapılmadıysa önce onlar tamamlanır. */
+function testKulakBitir(hz) {
+  if (test.tuzakToplam < TUZAK_MIN) {
+    test.bekleyenSonuc = hz;
+    test.durum = "tuzakTamamla";
+    testSonraki();
+    return;
+  }
+  kulakSonucunuIsle(hz);
+}
+
+function kulakSonucunuIsle(hz) {
+  test.sonuclar[test.kulaklar[test.kulakIndeks]] = hz;
+  test.kulakIndeks++;
+
+  if (test.kulakIndeks < test.kulaklar.length) {
+    test.indeks = 0;
+    test.durum = "tarama";
+    test.sonEvet = null;
+    test.dogrulamaHz = null; test.dogEvet = 0; test.dogToplam = 0;
+    testSonraki();
+    return;
+  }
+  testBitir();
+}
+
+function testBitir() {
+  test.aktif = false;
+
+  var sol = test.sonuclar.sol !== undefined ? test.sonuclar.sol : null;
+  var sag = test.sonuclar.sag !== undefined ? test.sonuclar.sag : null;
+  var her = test.sonuclar.her !== undefined ? test.sonuclar.her : null;
+
+  // Fonksiyonel işitmeyi iyi kulak belirler
+  var enYuksek = her;
+  if (enYuksek === null) enYuksek = Math.max(sol || 0, sag || 0) || null;
+
+  var yanlisOran = test.tuzakToplam ? (test.tuzakYanlis / test.tuzakToplam) : 0;
+  var guvenilir = (test.tuzakToplam >= 3) && (yanlisOran <= TUZAK_ESIK);
+
+  var kayitSatiri = {
+    tarih: Date.now(),
+    enYuksekHz: enYuksek,
+    solHz: sol, sagHz: sag,
+    isitmeYasi: enYuksek ? isitmeYasi(enYuksek) : "—",
+    guvenilir: guvenilir,
+    tuzakToplam: test.tuzakToplam,
+    tuzakYanlis: test.tuzakYanlis,
+    ornekHizi: Ses.ornekHizi()
+  };
+  kayit.isitme.push(kayitSatiri);
+  kayitYaz();
+
+  $("test-yas").textContent = enYuksek ? isitmeYasi(enYuksek) : "—";
+  $("test-hz").textContent  = enYuksek ? hzMetin(enYuksek) : "—";
+  $("test-hz-alt").textContent = (sol !== null || sag !== null)
+    ? ("sol " + (sol ? hzMetin(sol) : "—") + " · sağ " + (sag ? hzMetin(sag) : "—"))
+    : "frekans";
+  $("test-tutarli").textContent = test.tuzakToplam
+    ? (test.tuzakToplam - test.tuzakYanlis) + "/" + test.tuzakToplam
+    : "—";
+
+  var damga = $("test-damga");
+  damga.textContent = guvenilir ? "güvenilir" : "güvenilmez";
+  damga.className = "damga " + (guvenilir ? "damga--ok" : "damga--suphe");
+
+  var y = [];
+  if (!guvenilir) {
+    y.push("Sessiz denemelerin " + test.tuzakYanlis + " tanesinde \"duydum\" dedin — bu, sonucun olduğundan iyi çıkmasına yol açar. Testi sessiz bir ortamda tekrarlamanı öneririm.");
+  }
+  if (enYuksek !== null) {
+    y.push("Rahat bir seviyede duyabildiğin en yüksek frekans " + hzMetin(enYuksek) + " çıktı.");
+    var ust = Ses.ustSinir();
+    if (enYuksek >= ust) {
+      y.push("Bu değer donanımının test edebildiği tavana (" + hzMetin(ust) + ", örnekleme hızı " + (Ses.ornekHizi() / 1000).toFixed(1) + " kHz) dayandı — gerçek sınırın daha yukarıda olabilir.");
+    }
+  }
+  if (sol !== null && sag !== null && Math.abs(sol - sag) >= 2000) {
+    y.push("İki kulak arasında belirgin bir fark ölçüldü. Bu genelde kulaklığın oturuşundan kaynaklanır; kulaklığı düzeltip tekrarla, fark ısrar ediyorsa bir odyoloğa danış.");
+  }
+  $("test-yorum").textContent = y.join(" ");
+
+  $("test-akis").hidden = true;
+  $("test-sonuc").hidden = false;
+  ilerlemeTazele();
+}
+
+function testVazgec() {
+  if (test) test.aktif = false;
+  $("test-akis").hidden = true;
+  $("test-kulaklik").hidden = true;
+  $("test-tanitim").hidden = false;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ARAYÜZ / YÖNLENDİRME
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function sekmeGoster(ad) {
+  var sekmeler = document.querySelectorAll(".sekme");
+  for (var i = 0; i < sekmeler.length; i++) {
+    var s = sekmeler[i], secili = (s.getAttribute("data-panel") === ad);
+    s.setAttribute("aria-selected", secili ? "true" : "false");
+    var p = $("panel-" + s.getAttribute("data-panel"));
+    if (p) p.classList.toggle("acik", secili);
+  }
+  if (ad !== "oyun") calmayiDurdur();
+  if (ad === "ilerle") ilerlemeTazele();
+}
+
+function butonlariTazele() {
+  var D = deneyimBilgi();
+  var hb = $("btn-hedef");
+  var hedefAdi = (oyun.asama === 2) ? "Kök Sesi Çal" : "Hedefi Çal";
+
+  if (calmaModu === "hedef" && oyun.hedefZamanlayici) {
+    hb.textContent = "♪ çalıyor…";  hb.disabled = true;      // süre dolana dek kesilemez
+  } else if (D.tekDinleme && oyun.hedefDinlendi) {
+    hb.textContent = (oyun.asama === 2 ? "Kök ses dinlendi ✓" : "Hedef dinlendi ✓");
+    hb.disabled = true;
+  } else if (calmaModu === "hedef") {
+    hb.textContent = "◼ Durdur";    hb.disabled = false;
+  } else {
+    hb.textContent = hedefAdi;      hb.disabled = false;
+  }
+
+  $("btn-benim").textContent = (calmaModu === "benim") ? "◼ Durdur" : "Benimkini Çal";
+
+  /* Tur açıkken karar butonu, kapandıktan sonra birleşik sesin çal/durdur'u. */
+  var kb = $("btn-kontrol");
+  if (oyun.turAcik)                    kb.textContent = "Kontrol Et!";
+  else if (calmaModu === "birlikte")   kb.textContent = "◼ Durdur";
+  else                                 kb.textContent = "Birlikte Dinle";
+
+  calanTazele();
+}
+
+function kaydiriciTazele() {
+  var hz = oyuncuHz();
+  $("kaydirici-deger").textContent = hzMetin(hz) + " · " + notaMetni(hz);
+  $("kaydirici").setAttribute("aria-valuetext", Math.round(oyun.oyuncuCent) + " cent, " + hzMetin(hz));
+}
+
+function rutbeTazele() {
+  var r = rutbeBul(kayit.profil.toplamXP);
+  $("rutbe-ad").textContent = r.ad;
+  $("rutbe-xp").textContent = kayit.profil.toplamXP + " XP";
+  $("rutbe-dolu").style.width = Math.round(r.oran * 100) + "%";
+}
+
+function modTazele() {
+  var D = deneyimBilgi();
+  var dugmeler = document.querySelectorAll(".mod");
+  for (var i = 0; i < dugmeler.length; i++) {
+    dugmeler[i].setAttribute("aria-pressed",
+      dugmeler[i].getAttribute("data-mod") === String(oyun.deneyim) ? "true" : "false");
+  }
+  var u = $("mod-uyari");
+  u.innerHTML = D.uyari;
+  u.className = "mod-uyari" + (D.tekDinleme ? " mod-uyari--dikkat" : "");
+}
+
+function deneyimDegistir(no) {
+  if (no < 1 || no > DENEYIMLER.length) return;
+  oyun.deneyim = no;
+  oyun.seri = 0;
+  kayit.profil.deneyim = no;
+  kayitYaz();
+  turBaslat();              // kurallar değişti, tur baştan
+  if ($("panel-ilerle").classList.contains("acik")) ilerlemeTazele();
+}
+
+function arayuzTazele() {
+  modTazele();
+  var A = asamaBilgi();
+  var T = TOLERANSLAR[oyun.altSeviye - 1];
+
+  $("et-asama").textContent  = "Aşama " + oyun.asama + " · " + A.ad;
+  $("et-seviye").textContent = "Seviye " + oyun.altSeviye + " · ±" + T + " cent";
+  $("et-seri").hidden = (oyun.seri < 2);
+  $("et-seri").textContent = "Seri " + oyun.seri;
+  $("sy-puan").textContent = oyun.puan;
+  $("sy-tur").textContent  = oyun.turSayisi;
+
+  var yon = A.yonerge;
+  if (oyun.asama === 2 && oyun.aralik) {
+    yon += "<br /><strong>Bu tur:</strong> kök sesin üstünde <strong>" + oyun.aralik.ad +
+           "</strong> (" + oyun.aralik.yarim + " yarım ses).";
+  }
+  $("oyun-yonerge").innerHTML = yon;
+
+  kaydiriciTazele();
+  rutbeTazele();
+  butonlariTazele();
+  asamaSecimTazele();
+}
+
+/* --- İlerleme paneli ------------------------------------------------------- */
+function ilerlemeTazele() {
+  rutbeTazele();          // veri buradan da değişebilir (içe aktarma, sıfırlama)
+  // Özet kutuları
+  var j1k = [];
+  for (var i = 0; i < kayit.jnd.length; i++) if (kayit.jnd[i].bant === 1000) j1k.push(kayit.jnd[i].cent);
+  $("il-jnd").textContent = j1k.length ? Math.min.apply(null, j1k).toFixed(1) : "—";
+
+  var son20 = kayit.turlar.slice(-20).map(function (t) { return Math.abs(t.hataCent); });
+  $("il-hata").textContent = son20.length ? ortalama(son20).toFixed(1) : "—";
+  $("il-tur").textContent  = kayit.turlar.length;
+
+  var sonTest = kayit.isitme.length ? kayit.isitme[kayit.isitme.length - 1] : null;
+  $("il-yas").textContent = sonTest ? sonTest.isitmeYasi : "—";
+
+  // 1) JND / zaman
+  var jndSeri = kayit.jnd.map(function (x) { return x.cent; });
+  $("gr-jnd").style.display = jndSeri.length ? "" : "none";
+  $("gr-jnd-bos").style.display = jndSeri.length ? "none" : "";
+  if (jndSeri.length) {
+    cizgiGrafik($("gr-jnd"), jndSeri, {
+      renk: "#6aa9f5", dolgu: "rgba(106,169,245,0.22)", tabanSifir: true,
+      solEtiket: "ilk ölçüm", sagEtiket: "son ölçüm"
+    });
+  }
+
+  /* 2) Eşleştirme hatası — yalnızca SEÇİLİ deneyim seviyesi.
+        Uzman'ın anlık isabeti ile Acemi'nin serbest ayarı aynı grafikte
+        karışırsa eğilim okunamaz hale gelir. Eski kayıtlarda alan yok:
+        onlar Acemi sayılır, çünkü tek davranış oydu. */
+  var suAnkiDeneyim = oyun.deneyim;
+  var oSeviye = kayit.turlar.filter(function (t) { return (t.deneyim || 1) === suAnkiDeneyim; });
+  var hataSeri = oSeviye.slice(-40).map(function (t) { return Math.abs(t.hataCent); });
+  var hbaslik = document.querySelector("#gr-hata").closest(".kart").querySelector("h3");
+  if (hbaslik) hbaslik.textContent = "son 40 tur · cent · " + DENEYIMLER[suAnkiDeneyim - 1].ad;
+  $("gr-hata").style.display = hataSeri.length ? "" : "none";
+  $("gr-hata-bos").style.display = hataSeri.length ? "none" : "";
+  $("gr-hata-bos").textContent = DENEYIMLER[suAnkiDeneyim - 1].ad + " seviyesinde henüz tur oynanmadı.";
+  if (hataSeri.length) {
+    cizgiGrafik($("gr-hata"), hataSeri, {
+      renk: "#4ade80", dolgu: "rgba(74,222,128,0.22)", tabanSifir: true,
+      solEtiket: "eski", sagEtiket: "son tur"
+    });
+  }
+
+  /* 3) Bant isabeti — sabit bir ölçüt kullanılır (±25 cent, yani en gevşek
+        tolerans). Tolerans zamanla değiştiği için tek karşılaştırılabilir
+        yardımcı ölçüt budur. */
+  var kova = BANTLAR.map(function (b) { return { ad: b.ad, isabet: 0, toplam: 0 }; });
+  for (var k = 0; k < kayit.turlar.length; k++) {
+    var t = kayit.turlar[k];
+    if (!t.hedefHz) continue;
+    for (var b = 0; b < BANTLAR.length; b++) {
+      if (t.hedefHz >= BANTLAR[b].alt && t.hedefHz < BANTLAR[b].ust) {
+        kova[b].toplam++;
+        if (Math.abs(t.hataCent) <= 25) kova[b].isabet++;
+        break;
+      }
+    }
+  }
+  var veriVar = kova.some(function (x) { return x.toplam > 0; });
+  $("gr-bant").style.display = veriVar ? "" : "none";
+  $("gr-bant-bos").style.display = veriVar ? "none" : "";
+  if (veriVar) {
+    cubukGrafik($("gr-bant"), kova.map(function (x) {
+      return { ad: x.ad, deger: x.toplam ? (x.isabet / x.toplam * 100) : 0, veriYok: x.toplam === 0 };
+    }));
+  }
+
+  // 4) İşitme testi geçmişi
+  var govde = $("il-tablo-govde");
+  govde.innerHTML = "";
+  var liste = kayit.isitme.slice().reverse();
+  $("il-tablo").style.display = liste.length ? "" : "none";
+  $("il-tablo-bos").style.display = liste.length ? "none" : "";
+  for (var m = 0; m < liste.length; m++) {
+    var r = liste[m];
+    var tr = document.createElement("tr");
+    var kulaklar = (r.solHz || r.sagHz)
+      ? ((r.solHz ? hzMetin(r.solHz) : "—") + " / " + (r.sagHz ? hzMetin(r.sagHz) : "—"))
+      : "—";
+    tr.innerHTML =
+      "<td>" + tarihMetin(r.tarih) + "</td>" +
+      "<td>" + (r.enYuksekHz ? hzMetin(r.enYuksekHz) : "—") + "</td>" +
+      "<td>" + r.isitmeYasi + "</td>" +
+      "<td>" + kulaklar + "</td>" +
+      "<td><span class='damga " + (r.guvenilir ? "damga--ok'>güvenilir" : "damga--suphe'>güvenilmez") + "</span></td>";
+    govde.appendChild(tr);
+  }
+}
+
+/* --- Aşama seçimi ---------------------------------------------------------- */
+function asamaSecimTazele() {
+  var sec = $("ay-asama");
+  if (!sec) return;
+  var mevcut = String(oyun.asama);
+  sec.innerHTML = "";
+  for (var i = 0; i < ASAMALAR.length; i++) {
+    var A = ASAMALAR[i];
+    var acik = asamaAcik(A.no);
+    var op = document.createElement("option");
+    op.value = String(A.no);
+    op.textContent = "Aşama " + A.no + " — " + A.ad + (acik ? "" : "  (kilitli)");
+    op.disabled = !acik;
+    if (String(A.no) === mevcut) op.selected = true;
+    sec.appendChild(op);
+  }
+  var not = "";
+  for (var j = 2; j <= 3; j++) if (!asamaAcik(j)) { not = "Aşama " + j + " için: " + kilitAciklama(j); break; }
+  $("ay-asama-not").textContent = not || "Tüm aşamalar açık.";
+}
+
+function asamaDegistir(no) {
+  if (!asamaAcik(no)) return;
+  oyun.asama = no;
+  oyun.altSeviye = 1;
+  oyun.sonHatalar = [];
+  oyun.dususSeri = 0;
+  oyun.seri = 0;
+  kayit.profil.asama = no;
+  kayitYaz();
+  turBaslat();
+}
+
+/* --- Veri dışa/içe aktarma ------------------------------------------------- */
+function veriDisaAktar() {
+  try {
+    var metin = JSON.stringify(kayit, null, 2);
+    var blob = new Blob([metin], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "bunu-duyuyor-musun-" + new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    $("ay-veri-durum").textContent = "Dışa aktarıldı.";
+  } catch (e) {
+    $("ay-veri-durum").textContent = "Dışa aktarma başarısız: " + e.message;
+  }
+}
+
+function veriIceAktar(dosya) {
+  var okuyucu = new FileReader();
+  okuyucu.onload = function () {
+    try {
+      var o = JSON.parse(okuyucu.result);
+      if (!o || typeof o !== "object") throw new Error("beklenen yapı yok");
+      var v = varsayilanKayit();
+      if (o.profil)  for (var a in v.profil)  if (o.profil[a]  !== undefined) v.profil[a]  = o.profil[a];
+      if (o.ayarlar) for (var b in v.ayarlar) if (o.ayarlar[b] !== undefined) v.ayarlar[b] = o.ayarlar[b];
+      if (Array.isArray(o.isitme)) v.isitme = o.isitme;
+      if (Array.isArray(o.jnd))    v.jnd    = o.jnd;
+      if (Array.isArray(o.turlar)) v.turlar = o.turlar;
+      kayit = v;
+      kayitYaz();
+      ayarlariUygula();
+      oyun.asama = Math.min(3, Math.max(1, kayit.profil.asama || 1));
+      oyun.altSeviye = Math.min(5, Math.max(1, kayit.profil.altSeviye || 1));
+      turBaslat();
+      ilerlemeTazele();
+      $("ay-veri-durum").textContent = "İçe aktarıldı: " + kayit.turlar.length + " tur, " +
+        kayit.jnd.length + " ayırt etme ölçümü, " + kayit.isitme.length + " işitme testi.";
+    } catch (e) {
+      $("ay-veri-durum").textContent = "Dosya okunamadı: " + e.message;
+    }
+  };
+  okuyucu.readAsText(dosya);
+}
+
+function veriSifirla() {
+  if (!confirm("Tüm ilerlemen silinecek: puanlar, ayırt etme ölçümleri ve işitme testi geçmişi.\n\nDevam edilsin mi?")) return;
+  try { localStorage.removeItem(KAYIT_ANAHTARI); } catch (e) {}
+  kayit = varsayilanKayit();
+  ayarlariUygula();
+  oyun.asama = 1; oyun.altSeviye = 1; oyun.puan = 0; oyun.turSayisi = 0;
+  oyun.seri = 0; oyun.sonHatalar = []; oyun.dususSeri = 0;
+  turBaslat();
+  ilerlemeTazele();
+  $("ay-veri-durum").textContent = "Sıfırlandı.";
+}
+
+/* --- Ayarların arayüze uygulanması ----------------------------------------- */
+function ayarlariUygula() {
+  var a = kayit.ayarlar;
+  $("ay-ses").value = a.sesSeviyesi;
+  $("ay-ses-deger").textContent = "%" + a.sesSeviyesi;
+  $("kalib-ses").value = a.sesSeviyesi;
+  $("kalib-ses-deger").textContent = "%" + a.sesSeviyesi;
+  $("ay-vibrato").checked   = !!a.vibrato;
+  $("ay-nefes").checked     = !!a.nefes;
+  $("ay-uyarlanir").checked = !!a.uyarlanir;
+  if ($("ay-kilit")) $("ay-kilit").checked = !!a.kilitYok;
+  $("test-kulak-ayri").checked = !!a.kulakAyri;
+  Ses.seviyeAyarla(a.sesSeviyesi);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OLAY BAĞLANTILARI
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function kaydiriciDegistir(cent) {
+  /* Kontrol Et son karardır. Kilit tek noktada burada kurulur; yoksa klavye
+     yolu (ok tuşları) kapalı kaydırıcıyı baypas edip cevabı gördükten sonra
+     ayar yapmaya izin verirdi. */
+  if (!oyun.turAcik) return;
+  var A = asamaBilgi();
+  cent = Math.max(-A.menzil, Math.min(A.menzil, Math.round(cent)));
+  oyun.oyuncuCent = cent;
+  $("kaydirici").value = String(cent);
+  if (sesBenim) sesBenim.frekansAyarla(oyuncuHz());
+  kaydiriciTazele();
+}
+
+/* Sekmeler */
+var sekmeDugmeleri = document.querySelectorAll(".sekme");
+for (var si = 0; si < sekmeDugmeleri.length; si++) {
+  (function (d) {
+    d.addEventListener("click", function () { sekmeGoster(d.getAttribute("data-panel")); });
+  })(sekmeDugmeleri[si]);
+}
+
+/* Oyun */
+$("kaydirici").addEventListener("input", function (e) { kaydiriciDegistir(Number(e.target.value)); });
+$("kaydirici").addEventListener("keydown", function (e) {
+  if (!e.shiftKey) return;
+  if (e.code !== "ArrowLeft" && e.code !== "ArrowRight") return;
+  e.preventDefault();
+  kaydiriciDegistir(oyun.oyuncuCent + (e.code === "ArrowLeft" ? -10 : 10));
+});
+
+$("btn-hedef").addEventListener("click", function () { cal("hedef"); });
+$("btn-benim").addEventListener("click", function () { cal("benim"); });
+var modDugmeleri = document.querySelectorAll(".mod");
+for (var mi = 0; mi < modDugmeleri.length; mi++) {
+  (function (d) {
+    d.addEventListener("click", function () { deneyimDegistir(Number(d.getAttribute("data-mod"))); });
+  })(modDugmeleri[mi]);
+}
+
+/* Uzman: kaydırıcı bırakıldığı an karar kesinleşir. Yalnızca "Benimkini Çal"
+   sonrası silahlanır — yoksa turun başındaki kazara bir dokunuş kararı verirdi.
+   Klavye için bu yol kullanılmaz (her ok tuşu "change" tetikler ve ayar yapmayı
+   imkânsız kılardı); klavyede karar Enter ile kesinleşir. */
+(function () {
+  var kaydiriciEl = $("kaydirici");
+  function otoKarar() {
+    if (!oyun.uzmanSilahli || !oyun.turAcik) return;
+    oyun.uzmanSilahli = false;
+    kontrolEt();
+  }
+  kaydiriciEl.addEventListener("pointerup", otoKarar);
+  kaydiriciEl.addEventListener("pointercancel", otoKarar);
+})();
+
+$("btn-kontrol").addEventListener("click", function () {
+  if (oyun.turAcik) kontrolEt();
+  else cal("birlikte");                     // hükmü tekrar dinle / durdur
+});
+$("btn-sonraki").addEventListener("click", turBaslat);
+
+/* Ayırt etme */
+$("ayirt-basla").addEventListener("click", function () { jndBaslat(Number($("ayirt-bant").value)); });
+$("ayirt-yeniden").addEventListener("click", function () {
+  $("ayirt-sonuc").hidden = true;
+  $("ayirt-tanitim").hidden = false;
+});
+$("ayirt-1").addEventListener("click", function () { jndCevap(1); });
+$("ayirt-2").addEventListener("click", function () { jndCevap(2); });
+$("ayirt-tekrar").addEventListener("click", jndCal);
+$("ayirt-vazgec").addEventListener("click", jndVazgec);
+
+/* İşitme testi */
+$("test-basla").addEventListener("click", function () {
+  kayit.ayarlar.kulakAyri = $("test-kulak-ayri").checked;
+  kayitYaz();
+  testBaslat(kayit.ayarlar.kulakAyri);
+});
+$("test-yeniden").addEventListener("click", function () {
+  $("test-sonuc").hidden = true;
+  $("test-tanitim").hidden = false;
+});
+$("kulaklik-sol").addEventListener("click", function () { kulaklikCevap("sol"); });
+$("kulaklik-sag").addEventListener("click", function () { kulaklikCevap("sag"); });
+$("kulaklik-tekrar").addEventListener("click", kulaklikCal);
+$("test-evet").addEventListener("click", function () { testCevap(true); });
+$("test-hayir").addEventListener("click", function () { testCevap(false); });
+$("test-tekrar").addEventListener("click", function () {
+  if (test && !test.dinleniyor) { test.denemeNo--; testCal(test.suAnTuzak ? 0 : test.suAnHz); }
+});
+$("test-vazgec").addEventListener("click", testVazgec);
+
+/* Ayarlar */
+$("ay-ses").addEventListener("input", function (e) {
+  var v = Number(e.target.value);
+  kayit.ayarlar.sesSeviyesi = v;
+  $("ay-ses-deger").textContent = "%" + v;
+  $("kalib-ses").value = v;
+  $("kalib-ses-deger").textContent = "%" + v;
+  Ses.seviyeAyarla(v);
+  kayitYaz();
+});
+$("ay-vibrato").addEventListener("change", function (e) {
+  kayit.ayarlar.vibrato = e.target.checked; kayitYaz();
+  if (calmaModu) { var m = calmaModu; calmayiDurdur(); cal(m); }
+});
+$("ay-nefes").addEventListener("change", function (e) {
+  kayit.ayarlar.nefes = e.target.checked; kayitYaz();
+  if (calmaModu) { var m = calmaModu; calmayiDurdur(); cal(m); }
+});
+$("ay-uyarlanir").addEventListener("change", function (e) {
+  kayit.ayarlar.uyarlanir = e.target.checked; kayitYaz();
+});
+$("ay-kilit").addEventListener("change", function (e) {
+  kayit.ayarlar.kilitYok = e.target.checked; kayitYaz();
+  asamaSecimTazele();
+});
+$("ay-asama").addEventListener("change", function (e) { asamaDegistir(Number(e.target.value)); });
+$("ay-disa").addEventListener("click", veriDisaAktar);
+$("ay-ice").addEventListener("click", function () { $("ay-dosya").click(); });
+$("ay-dosya").addEventListener("change", function (e) {
+  if (e.target.files && e.target.files[0]) veriIceAktar(e.target.files[0]);
+  e.target.value = "";
+});
+$("ay-sifirla").addEventListener("click", veriSifirla);
+
+/* Klavye kısayolları — yalnızca Oyun sekmesinde */
+document.addEventListener("keydown", function (e) {
+  if (!$("ortu").hidden) return;                 // açılış örtüsü açıkken arkaya sızmasın
+  if (!$("panel-oyun").classList.contains("acik")) return;
+  var etkin = document.activeElement;
+  var tag = etkin ? etkin.tagName : "";
+  if (tag === "SELECT" || tag === "TEXTAREA") return;
+  if (tag === "INPUT" && etkin.type !== "range") return;
+
+  if (e.code === "Space") {
+    if (tag === "BUTTON") return;             // odaktaki butonu bastırma
+    e.preventDefault();
+    cal("hedef");
+    return;
+  }
+  if (e.code === "KeyB") {
+    e.preventDefault();
+    cal("benim");
+    return;
+  }
+  if (e.code === "Enter") {
+    if (tag === "BUTTON") return;
+    e.preventDefault();
+    if (oyun.turAcik) kontrolEt(); else turBaslat();
+    return;
+  }
+  if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
+    if (etkin === $("kaydirici")) return;     // kaydırıcı odaktaysa kendi işini yapsın
+    e.preventDefault();
+    kaydiriciDegistir(oyun.oyuncuCent + (e.code === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 10 : 1));
+  }
+});
+
+/* Sekme arka plana geçince sesi kes */
+document.addEventListener("visibilitychange", function () {
+  if (document.hidden) calmayiDurdur();
+});
+
+/* Yeniden boyutlanınca tuvalleri tazele */
+var boyutZaman = null;
+window.addEventListener("resize", function () {
+  clearTimeout(boyutZaman);
+  boyutZaman = setTimeout(function () {
+    if ($("panel-ilerle").classList.contains("acik")) ilerlemeTazele();
+    if ($("sonuc-kart").classList.contains("acik") && kayit.turlar.length) {
+      var son = kayit.turlar[kayit.turlar.length - 1];
+      kadranCiz(son.hataCent, TOLERANSLAR[oyun.altSeviye - 1]);
+    }
+  }, 150);
+});
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AÇILIŞ ÖRTÜSÜ
+   AudioContext ilk kullanıcı hareketinde doğar — otomatik oynatma politikası.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var kalibSes = null;
+
+function kalibDurdur() {
+  if (kalibSes) { kalibSes.kapa(0.08); kalibSes.yokEt(); kalibSes = null; }
+  $("kalib-nabiz").classList.remove("aktif");
+  $("kalib-durum").textContent = "Ton kapalı";
+  $("kalib-cal").textContent = "Referans tonu çal";
+}
+
+var kalibDinlendi = false;
+
+$("giris-ileri").addEventListener("click", function () {
+  Ses.kur();
+  document.querySelector('[data-giris="1"]').hidden = true;
+  document.querySelector('[data-giris="2"]').hidden = false;
+  /* İki adımın butonları neredeyse aynı ekran konumunda; çift tıklama
+     kalibrasyonu atlatmasın diye kısa bir koruma. */
+  $("kalib-cal").disabled = true;
+  setTimeout(function () { $("kalib-cal").disabled = false; }, 350);
+});
+
+$("kalib-cal").addEventListener("click", function () {
+  if (!Ses.kur()) return;
+  if (kalibSes) { kalibDurdur(); return; }
+  kalibSes = Ses.sesYarat({ frekans: 1000, tini: "sinus" });
+  if (!kalibSes) return;
+  kalibSes.ac(0.85, 0.08);
+  $("kalib-nabiz").classList.add("aktif");
+  $("kalib-durum").textContent = "1 kHz çalıyor";
+  $("kalib-cal").textContent = "◼ Durdur";
+
+  if (!kalibDinlendi) {
+    kalibDinlendi = true;
+    $("giris-basla").disabled = false;
+    $("giris-basla-not").textContent = "Rahat duyduğun bir seviyeye getir, sonra başla.";
+  }
+});
+
+$("kalib-ses").addEventListener("input", function (e) {
+  var v = Number(e.target.value);
+  kayit.ayarlar.sesSeviyesi = v;
+  $("kalib-ses-deger").textContent = "%" + v;
+  $("ay-ses").value = v;
+  $("ay-ses-deger").textContent = "%" + v;
+  Ses.seviyeAyarla(v);
+});
+
+$("giris-basla").addEventListener("click", function () {
+  kalibDurdur();
+  kayit.profil.girisTamam = true;
+  kayitYaz();
+  $("ortu").hidden = true;
+});
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BAŞLATMA
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+kayit = kayitYukle();
+ayarlariUygula();
+
+oyun.asama     = Math.min(3, Math.max(1, kayit.profil.asama || 1));
+oyun.altSeviye = Math.min(5, Math.max(1, kayit.profil.altSeviye || 1));
+oyun.deneyim   = Math.min(3, Math.max(1, kayit.profil.deneyim || 1));
+if (!asamaAcik(oyun.asama)) oyun.asama = 1;
+
+if (kayit.profil.girisTamam) $("ortu").hidden = true;
+
+turBaslat();
+ilerlemeTazele();
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DOĞRULAMA KANCASI
+   Test koşucusu yok; saf fonksiyonlar konsoldan sınanabilsin diye dışa verilir.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+window.__fo = {
+  centArasi: centArasi,
+  centtenFrekans: centtenFrekans,
+  enYakinNota: enYakinNota,
+  notaMetni: notaMetni,
+  bantHesapla: bantHesapla,
+  turPuani: turPuani,
+  isitmeYasi: isitmeYasi,
+  rutbeBul: rutbeBul,
+  TOLERANSLAR: TOLERANSLAR,
+  ASAMALAR: ASAMALAR,
+  oyun: oyun,
+  kayit: function () { return kayit; },
+  ses: Ses,
+  oyuncuHz: oyuncuHz,
+  turBaslat: turBaslat,
+  kaydiriciDegistir: kaydiriciDegistir,
+  kontrolEt: kontrolEt,
+  asamaDegistir: asamaDegistir,
+  deneyimDegistir: deneyimDegistir,
+  DENEYIMLER: DENEYIMLER,
+  /* Merdivenlerin karar mantığı senkron; doğrulama için durum nesnelerine
+     ve cevap işleyicilerine erişim açılır. */
+  jndDurum: function () { return jnd; },
+  jndCevap: jndCevap,
+  jndBaslat: jndBaslat,
+  testDurum: function () { return test; },
+  testCevap: testCevap,
+  /* Kulaklık ön kontrolünü atlayıp doğrudan frekans merdivenini kurar —
+     merdivenin karar mantığını simüle dinleyiciyle sınamak için. */
+  merdivenBaslat: function (kulakAyri) { test = testSifir(kulakAyri); return test; },
+  merdivenSonraki: testSonraki
+};
+
+})();
+</script>
+</body>
+</html>

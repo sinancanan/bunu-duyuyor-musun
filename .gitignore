@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+._*
+
+# Yerel araç ayarları (makineye özel)
+.claude/settings.local.json
+
+# Düzenleyici
+.vscode/
+.idea/
