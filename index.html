@@ -545,6 +545,46 @@ kbd {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   HESAP (opsiyonel bulut senkronizasyonu)
+   Yapılandırılmamışsa (SUPABASE_URL boş) #hesap gizli kalır — arayüz
+   eskisiyle birebir aynı görünür.
+   ═══════════════════════════════════════════════════════════════ */
+.hesap { display: flex; align-items: center; }
+.hesap[hidden] { display: none; }
+.hesap__oturum { display: flex; align-items: center; gap: 8px; }
+.hesap__oturum[hidden] { display: none; }
+/* .uyari, .btn ve .anahtar__not display bildiren kurallar taşıyor — hidden
+   niteliği bu üç sınıfta kimlik/hesap arayüzü tarafından da açılıp
+   kapatıldığı için (yalnızca .ortu bunu zaten kendi yapıyordu), aynı
+   düzeltme burada da gerekiyor. */
+.uyari[hidden], .btn[hidden], .anahtar__not[hidden] { display: none; }
+.hesap__eposta {
+  font-size: 0.78rem; color: var(--muted); max-width: 140px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.hesap__nokta {
+  width: 8px; height: 8px; border-radius: 50%; flex: none;
+  background: var(--muted-dim);
+}
+.hesap__nokta--bekliyor { background: var(--hedef); animation: hesapNabiz 1s ease-in-out infinite; }
+.hesap__nokta--tamam    { background: var(--iyi); }
+.hesap__nokta--hata     { background: var(--kotu); }
+@keyframes hesapNabiz { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
+
+/* Metin girdisi: sadece kimlik formunda kullanılır, oluk/ekran diline uyar */
+.girdi {
+  display: block; width: 100%; font: inherit; font-size: 0.9rem;
+  background: var(--oluk); border: 1px solid var(--oluk-kenar); color: var(--text);
+  border-radius: var(--radius-sm); padding: 10px 12px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.girdi::placeholder { color: var(--muted-dim); }
+.girdi:focus-visible { outline: 2px solid var(--bilgi); outline-offset: 1px; }
+
+.baglanti { color: var(--bilgi); text-decoration: none; font-size: 0.8rem; cursor: pointer; }
+.baglanti:hover { text-decoration: underline; }
+
+/* ═══════════════════════════════════════════════════════════════
    DAR EKRAN
    ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 560px) {
@@ -554,6 +594,7 @@ kbd {
   .btn-satir--esit > .btn { min-width: 0; flex-basis: 100%; }
   .sonuc__puan { margin-left: 0; text-align: left; }
   .ortu__kutu { padding: 20px; }
+  .hesap__eposta { max-width: 90px; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -641,6 +682,65 @@ kbd {
   </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     KİMLİK — giriş / kayıt / şifre yenileme (tek modal, üç mod)
+     Bulut yapılandırılmamışsa hiç açılmaz.
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="ortu" id="kimlik-ortu" hidden>
+  <div class="ortu__kutu">
+    <h1 class="ortu__baslik" id="kimlik-baslik">Giriş yap</h1>
+    <p class="ortu__slogan">
+      Giriş yapmadan da oynayabilirsin — ilerlemen bu cihazda kalır.
+      Hesap açarsan cihazlar arası senkronize olur.
+    </p>
+
+    <div class="uyari uyari--kirmizi" id="kimlik-hata" hidden></div>
+    <div class="uyari uyari--bilgi" id="kimlik-bilgi" hidden></div>
+
+    <div class="alan" id="kimlik-eposta-alan">
+      <label class="alan__etiket" for="kimlik-eposta"><span>E-posta</span></label>
+      <input class="girdi" type="email" id="kimlik-eposta" autocomplete="email" placeholder="sen@ornek.com" />
+    </div>
+    <div class="alan" id="kimlik-sifre-alan">
+      <label class="alan__etiket" for="kimlik-sifre"><span>Şifre</span></label>
+      <input class="girdi" type="password" id="kimlik-sifre" autocomplete="current-password" placeholder="şifren" />
+    </div>
+
+    <div class="btn-satir" style="margin-top:4px">
+      <button class="btn btn--ana" id="kimlik-gonder" type="button">Giriş yap</button>
+      <button class="btn btn--sade" id="kimlik-vazgec" type="button">Vazgeç</button>
+    </div>
+
+    <p class="anahtar__not" style="text-align:center;margin-top:14px">
+      <a class="baglanti" id="kimlik-mod-degistir">Hesabın yok mu? Kayıt ol</a>
+    </p>
+    <p class="anahtar__not" style="text-align:center;margin-top:6px">
+      <a class="baglanti" id="kimlik-sifre-unuttum">Şifreni mi unuttun?</a>
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     ÇAKIŞMA — girişte hem cihazda hem bulutta ilerleme bulunursa
+     ═══════════════════════════════════════════════════════════════ -->
+<div class="ortu" id="cakisma-ortu" hidden>
+  <div class="ortu__kutu">
+    <h1 class="ortu__baslik">İki yerde de ilerleme var</h1>
+    <p class="ortu__slogan">
+      Bu cihazda da, hesabında da kayıtlı ilerleme bulundu. Hangisini kullanmak
+      istiyorsun? Seçmediğin taraf, seçtiğin tarafla değiştirilecek.
+    </p>
+
+    <div class="uyari uyari--dikkat" id="cakisma-yerel-ozet"></div>
+    <div class="uyari uyari--bilgi" id="cakisma-bulut-ozet"></div>
+
+    <div class="btn-satir btn-satir--esit" style="margin-top:6px">
+      <button class="btn btn--oyuncu" id="cakisma-yerel-sec" type="button">Bu cihazdakini kullan</button>
+      <button class="btn btn--hedef" id="cakisma-bulut-sec" type="button">Hesaptakini kullan</button>
+    </div>
+  </div>
+</div>
+
 <div class="kabuk">
 
   <!-- ═══════════════════════════════════════════════════════════════
@@ -654,6 +754,16 @@ kbd {
       <span class="rutbe__ad" id="rutbe-ad">Çaylak Kulak</span>
       <span class="rutbe__cizgi"><span class="rutbe__dolu" id="rutbe-dolu" style="width:0%"></span></span>
       <span class="rutbe__xp" id="rutbe-xp">0 XP</span>
+    </div>
+
+    <!-- Bulut yapılandırılmamışsa JS bunu gizli tutar -->
+    <div class="hesap" id="hesap" hidden>
+      <button class="btn btn--kucuk btn--sade" id="hesap-giris-btn" type="button">Giriş Yap</button>
+      <div class="hesap__oturum" id="hesap-oturum" hidden>
+        <span class="hesap__nokta" id="hesap-nokta"></span>
+        <span class="hesap__eposta" id="hesap-eposta"></span>
+        <button class="btn btn--kucuk btn--sade" id="hesap-cikis-btn" type="button">Çıkış</button>
+      </div>
     </div>
   </header>
 
@@ -1102,9 +1212,12 @@ kbd {
     <div class="kart">
       <div class="kart__baslik"><h2>Verilerin</h2></div>
       <p class="aciklama">
-        Tüm ilerlemen yalnızca bu tarayıcıda, <code>localStorage</code> içinde tutulur —
-        hiçbir yere gönderilmez. Tarayıcı verilerini temizlersen kaybolur, o yüzden
-        arada bir dışa aktar.
+        Tüm ilerlemen bu tarayıcıda, <code>localStorage</code> içinde tutulur.
+        Tarayıcı verilerini temizlersen kaybolur, o yüzden arada bir dışa aktar.
+      </p>
+      <p class="aciklama" id="ay-bulut-not" hidden style="margin-top:8px">
+        Üstteki <strong>Hesap</strong> ile giriş yaparsan aynı ilerleme ayrıca
+        buluta yedeklenir ve cihazlar arası senkronize olur.
       </p>
       <div class="btn-satir" style="margin-top:14px">
         <button class="btn btn--kucuk" id="ay-disa" type="button">JSON olarak dışa aktar</button>
@@ -1120,10 +1233,14 @@ kbd {
   <footer class="alt">
     <kbd>←</kbd> <kbd>→</kbd> ince ayar (1 cent) · <kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> kaba ayar (10 cent) ·
     <kbd>Boşluk</kbd> hedefi çal · <kbd>B</kbd> kendi sesini çal · <kbd>Enter</kbd> kontrol et<br />
-    Tüm sesler tarayıcıda anlık üretilir — ses dosyası yok, sunucuya hiçbir şey gitmez.
+    Tüm sesler tarayıcıda anlık üretilir — ses dosyası yok. Giriş yapmadıkça hiçbir şey sunucuya gitmez.
   </footer>
 
 </div>
+
+<!-- Yalnızca hesap/bulut senkronizasyonu için — SUPABASE_URL boşsa Bulut modülü
+     bu global'i hiç kullanmaz, uygulama tamamen yerel çalışmaya devam eder. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
 (function () {
@@ -1135,6 +1252,17 @@ kbd {
 
 var KAYIT_ANAHTARI = "frekansOyun.v1";
 var KAYIT_SURUM = 1;
+
+/* Bulut hesabı (opsiyonel). Boş bırakılırsa Bulut modülü devre dışı kalır ve
+   uygulama öncekiyle birebir aynı, tamamen yerel çalışır. Doldurmak için:
+     1) supabase/schema.sql dosyasını proje SQL editöründe çalıştır,
+     2) Supabase panelinde Ayarlar → API'den Project URL ve "anon public"
+        anahtarını buraya kopyala.
+   "anon public" anahtarı istemci tarafında görünmek üzere tasarlanmıştır
+   (erişim denetimi RLS ile tablo tarafında yapılır) — service_role anahtarını
+   ASLA buraya koyma. */
+var SUPABASE_URL = "https://ktdpthfvajaycawunzty.supabase.co";
+var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0ZHB0aGZ2YWpheWNhd3VuenR5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODcxNDEwMDQsImV4cCI6MjEwMjcxNzAwNH0.T8JW-lWJ854xeG76yRBUXzfNOqrIbmZj7RYrQyGDk8k";
 
 var LA4 = 440;                       // La4 referansı
 var NOTA_ADLARI = ["Do","Do#","Re","Re#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"];
@@ -1333,19 +1461,33 @@ function varsayilanKayit() {
 
 var kayit = varsayilanKayit();
 
+/* Ham bir nesneyi (localStorage'dan, içe aktarılan dosyadan ya da buluttan
+   gelmiş olabilir) alan alan varsayılan bir kayda birleştirir — eksik/bozuk
+   anahtarlar varsayılana düşer. Üç yerde de aynı mantık kullanılsın diye
+   ortak fonksiyon. */
+function kayitBirlestir(hedef, o) {
+  if (!o || typeof o !== "object") return hedef;
+  if (o.profil)  for (var a in hedef.profil)  if (o.profil[a]  !== undefined) hedef.profil[a]  = o.profil[a];
+  if (o.ayarlar) for (var b in hedef.ayarlar) if (o.ayarlar[b] !== undefined) hedef.ayarlar[b] = o.ayarlar[b];
+  if (Array.isArray(o.isitme)) hedef.isitme = o.isitme;
+  if (Array.isArray(o.jnd))    hedef.jnd    = o.jnd;
+  if (Array.isArray(o.turlar)) hedef.turlar = o.turlar;
+  return hedef;
+}
+
+/* Bir kaydın "boş" sayılıp sayılmayacağı — bulut girişinde sessiz birleştirme
+   kararı için kullanılır: taraflardan biri boşsa sormaya gerek yok. */
+function kayitBosMu(k) {
+  return k.turlar.length === 0 && k.jnd.length === 0 && k.isitme.length === 0 && k.profil.toplamXP === 0;
+}
+
 function kayitYukle() {
   var v = varsayilanKayit();
   try {
     var ham = localStorage.getItem(KAYIT_ANAHTARI);
     if (!ham) return v;
     var o = JSON.parse(ham);
-    if (!o || typeof o !== "object") return v;
-    // Alan alan birleştir: eksik/bozuk anahtarlar varsayılana düşsün
-    if (o.profil)  for (var a in v.profil)  if (o.profil[a]  !== undefined) v.profil[a]  = o.profil[a];
-    if (o.ayarlar) for (var b in v.ayarlar) if (o.ayarlar[b] !== undefined) v.ayarlar[b] = o.ayarlar[b];
-    if (Array.isArray(o.isitme)) v.isitme = o.isitme;
-    if (Array.isArray(o.jnd))    v.jnd    = o.jnd;
-    if (Array.isArray(o.turlar)) v.turlar = o.turlar;
+    return kayitBirlestir(v, o);
   } catch (e) { /* bozuk kayıt — varsayılanla devam */ }
   return v;
 }
@@ -1354,8 +1496,24 @@ function kayitYaz() {
   try {
     if (kayit.turlar.length > 500) kayit.turlar = kayit.turlar.slice(-500);
     localStorage.setItem(KAYIT_ANAHTARI, JSON.stringify(kayit));
+    Bulut.senkronPlanla();
     return true;
   } catch (e) { return false; }
+}
+
+/* Yeni bir kaydı (içe aktarma ya da bulut birleştirmesi sonrası) etkin kayıt
+   yapar ve tüm bağımlı arayüzü tazeler. veriIceAktar ve Bulut modülü ortak
+   kullanır. */
+function kayitUygulaVeYenile(yeni) {
+  kayit = yeni;
+  kayitYaz();
+  ayarlariUygula();
+  oyun.asama     = Math.min(3, Math.max(1, kayit.profil.asama || 1));
+  oyun.altSeviye = Math.min(5, Math.max(1, kayit.profil.altSeviye || 1));
+  oyun.deneyim   = Math.min(3, Math.max(1, kayit.profil.deneyim || 1));
+  if (!asamaAcik(oyun.asama)) oyun.asama = 1;
+  turBaslat();
+  ilerlemeTazele();
 }
 
 
@@ -1571,6 +1729,90 @@ var Ses = (function () {
     durum: function () { return ctx ? ctx.state : "yok"; },
     ornekHizi: function () { return ctx ? ctx.sampleRate : 0; },
     ctx: function () { return ctx; }
+  };
+})();
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BULUT SENKRONİZASYONU (opsiyonel)
+
+   SUPABASE_URL boşsa modül tamamen içine kapanır: hazirMi() hep false döner,
+   #hesap gizli kalır, kayitYaz()'daki senkronPlanla() çağrısı sessizce
+   hiçbir şey yapmaz — uygulama öncekiyle birebir aynı, tamamen yerel çalışır.
+
+   Dolu olduğunda: e-posta/şifre ile auth.users'a kayıt/giriş, ilerleme
+   (kayit nesnesinin tamamı) public.profiles.data (jsonb) alanında satır
+   başına RLS ile saklanır (yalnızca auth.uid() = id). Yazmalar 1.5 sn
+   debounce edilir — her tur sonrası kayitYaz() çağrılır, her seferinde ağa
+   gidilmesin diye.
+   ═══════════════════════════════════════════════════════════════════════════ */
+var Bulut = (function () {
+  var istemci = null;
+  var kullanici = null;
+  var zamanlayici = null;
+  var durum = "kapali"; // kapali | bekliyor | tamam | hata
+
+  function hazirMi() {
+    return !!(SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase);
+  }
+
+  function kur() {
+    if (istemci || !hazirMi()) return;
+    istemci = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    istemci.auth.onAuthStateChange(function (olay, oturum) {
+      if (olay === "PASSWORD_RECOVERY") { kimlikSifreYenilemeAc(); return; }
+      kullanici = oturum ? oturum.user : null;
+      if (olay === "SIGNED_OUT") durum = "kapali";
+      hesapArayuzTazele();
+      if (olay === "SIGNED_IN" && kullanici) girisSonrasiEslestir();
+    });
+  }
+
+  function satirYaz(k) {
+    if (!istemci || !kullanici) return Promise.resolve({});
+    durum = "bekliyor"; hesapArayuzTazele();
+    return istemci.from("profiles")
+      .upsert({ id: kullanici.id, data: k, updated_at: new Date().toISOString() })
+      .then(function (sonuc) {
+        durum = sonuc.error ? "hata" : "tamam";
+        hesapArayuzTazele();
+        return sonuc;
+      });
+  }
+
+  function senkronPlanla() {
+    if (!istemci || !kullanici) return;
+    if (zamanlayici) clearTimeout(zamanlayici);
+    zamanlayici = setTimeout(function () { satirYaz(kayit); }, 1500);
+  }
+
+  return {
+    hazirMi: hazirMi,
+    kur: kur,
+    gecerliKullanici: function () { return kullanici; },
+    durumGetir: function () { return durum; },
+    yaz: satirYaz,
+    senkronPlanla: senkronPlanla,
+    satirOku: function (uid) {
+      return istemci.from("profiles").select("data,updated_at").eq("id", uid).maybeSingle();
+    },
+    girisYap: function (eposta, sifre) {
+      return istemci.auth.signInWithPassword({ email: eposta, password: sifre });
+    },
+    kayitOl: function (eposta, sifre) {
+      return istemci.auth.signUp({ email: eposta, password: sifre });
+    },
+    cikisYap: function () {
+      if (!istemci) return Promise.resolve({});
+      if (zamanlayici) { clearTimeout(zamanlayici); zamanlayici = null; }
+      return istemci.auth.signOut();
+    },
+    sifreSifirla: function (eposta) {
+      return istemci.auth.resetPasswordForEmail(eposta, { redirectTo: window.location.href.split("#")[0] });
+    },
+    sifreGuncelle: function (yeniSifre) {
+      return istemci.auth.updateUser({ password: yeniSifre });
+    }
   };
 })();
 
@@ -2806,19 +3048,7 @@ function veriIceAktar(dosya) {
     try {
       var o = JSON.parse(okuyucu.result);
       if (!o || typeof o !== "object") throw new Error("beklenen yapı yok");
-      var v = varsayilanKayit();
-      if (o.profil)  for (var a in v.profil)  if (o.profil[a]  !== undefined) v.profil[a]  = o.profil[a];
-      if (o.ayarlar) for (var b in v.ayarlar) if (o.ayarlar[b] !== undefined) v.ayarlar[b] = o.ayarlar[b];
-      if (Array.isArray(o.isitme)) v.isitme = o.isitme;
-      if (Array.isArray(o.jnd))    v.jnd    = o.jnd;
-      if (Array.isArray(o.turlar)) v.turlar = o.turlar;
-      kayit = v;
-      kayitYaz();
-      ayarlariUygula();
-      oyun.asama = Math.min(3, Math.max(1, kayit.profil.asama || 1));
-      oyun.altSeviye = Math.min(5, Math.max(1, kayit.profil.altSeviye || 1));
-      turBaslat();
-      ilerlemeTazele();
+      kayitUygulaVeYenile(kayitBirlestir(varsayilanKayit(), o));
       $("ay-veri-durum").textContent = "İçe aktarıldı: " + kayit.turlar.length + " tur, " +
         kayit.jnd.length + " ayırt etme ölçümü, " + kayit.isitme.length + " işitme testi.";
     } catch (e) {
@@ -2854,6 +3084,209 @@ function ayarlariUygula() {
   $("test-kulak-ayri").checked = !!a.kulakAyri;
   Ses.seviyeAyarla(a.sesSeviyesi);
 }
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   KİMLİK ARAYÜZÜ (giriş / kayıt / şifre yenileme / çakışma çözümü)
+   Bulut.hazirMi() false ise #hesap gizli kalır ve bu akışlardan hiçbiri
+   kullanıcıya görünmez — aşağıdaki fonksiyonlar da hiç tetiklenmez.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+var HATA_METINLERI = {
+  "Invalid login credentials": "E-posta veya şifre yanlış.",
+  "User already registered": "Bu e-posta zaten kayıtlı — giriş yapmayı dene.",
+  "Email not confirmed": "E-postanı onaylaman gerekiyor. Gelen kutunu kontrol et.",
+  "Password should be at least 6 characters": "Şifre en az 6 karakter olmalı.",
+  "Unable to validate email address: invalid format": "E-posta adresi geçersiz görünüyor.",
+  "For security purposes, you can only request this after 60 seconds.": "Güvenlik için bu isteği yalnızca 60 saniyede bir yapabilirsin."
+};
+
+function hataMetni(e) {
+  if (!e) return "Bilinmeyen bir hata oluştu.";
+  return HATA_METINLERI[e.message] || e.message || "Bilinmeyen bir hata oluştu.";
+}
+
+function hesapArayuzTazele() {
+  if (!Bulut.hazirMi()) { $("hesap").hidden = true; return; }
+  $("hesap").hidden = false;
+  if ($("ay-bulut-not")) $("ay-bulut-not").hidden = false;
+
+  var k = Bulut.gecerliKullanici();
+  $("hesap-giris-btn").hidden = !!k;
+  $("hesap-oturum").hidden = !k;
+  if (!k) return;
+
+  $("hesap-eposta").textContent = k.email;
+  $("hesap-eposta").title = k.email;
+
+  var d = Bulut.durumGetir();
+  $("hesap-nokta").className = "hesap__nokta hesap__nokta--" + d;
+  $("hesap-nokta").title =
+    d === "bekliyor" ? "Senkronize ediliyor…" :
+    d === "tamam"    ? "Buluta yedeklendi"    :
+    d === "hata"     ? "Senkronizasyon hatası" : "";
+}
+
+var kimlikMod = "giris"; // giris | kayit | sifreYenile
+
+function kimlikModTazele() {
+  if (kimlikMod === "sifreYenile") {
+    $("kimlik-baslik").textContent = "Yeni şifre belirle";
+    $("kimlik-eposta-alan").hidden = true;
+    $("kimlik-sifre").placeholder = "yeni şifre, en az 6 karakter";
+    $("kimlik-sifre").autocomplete = "new-password";
+    $("kimlik-gonder").textContent = "Şifreyi güncelle";
+    $("kimlik-mod-degistir").parentElement.hidden = true;
+    $("kimlik-sifre-unuttum").parentElement.hidden = true;
+    return;
+  }
+  $("kimlik-eposta-alan").hidden = false;
+  $("kimlik-mod-degistir").parentElement.hidden = false;
+  $("kimlik-sifre-unuttum").parentElement.hidden = false;
+  if (kimlikMod === "kayit") {
+    $("kimlik-baslik").textContent = "Kayıt ol";
+    $("kimlik-sifre").placeholder = "en az 6 karakter";
+    $("kimlik-sifre").autocomplete = "new-password";
+    $("kimlik-gonder").textContent = "Kayıt ol";
+    $("kimlik-mod-degistir").textContent = "Zaten hesabın var mı? Giriş yap";
+  } else {
+    $("kimlik-baslik").textContent = "Giriş yap";
+    $("kimlik-sifre").placeholder = "şifren";
+    $("kimlik-sifre").autocomplete = "current-password";
+    $("kimlik-gonder").textContent = "Giriş yap";
+    $("kimlik-mod-degistir").textContent = "Hesabın yok mu? Kayıt ol";
+  }
+}
+
+function kimlikHataGoster(msg) {
+  $("kimlik-hata").textContent = msg;
+  $("kimlik-hata").hidden = false;
+  $("kimlik-bilgi").hidden = true;
+}
+
+function kimlikBilgiGoster(msg) {
+  $("kimlik-bilgi").textContent = msg;
+  $("kimlik-bilgi").hidden = false;
+  $("kimlik-hata").hidden = true;
+}
+
+function kimlikAc(mod) {
+  if (!Bulut.hazirMi()) return;
+  kimlikMod = mod || "giris";
+  $("kimlik-hata").hidden = true;
+  $("kimlik-bilgi").hidden = true;
+  $("kimlik-eposta").value = "";
+  $("kimlik-sifre").value = "";
+  kimlikModTazele();
+  $("kimlik-ortu").hidden = false;
+  $("kimlik-eposta").focus();
+}
+
+function kimlikKapat() { $("kimlik-ortu").hidden = true; }
+
+function kimlikSifreYenilemeAc() { kimlikAc("sifreYenile"); }
+
+/* Girişten hemen sonra: cihazdaki ve buluttaki kayıt karşılaştırılır. Biri
+   boşsa sessizce diğeri kazanır; ikisinde de ilerleme varsa kullanıcıya
+   sorulur (cakismaSor) — aksi halde bir taraf sessizce üzerine yazılırdı. */
+function girisSonrasiEslestir() {
+  var k = Bulut.gecerliKullanici();
+  if (!k) return;
+  Bulut.satirOku(k.id).then(function (sonuc) {
+    if (sonuc.error) return;
+    var satir = sonuc.data;
+    if (!satir) { Bulut.yaz(kayit); return; }
+
+    var bulutKayit = kayitBirlestir(varsayilanKayit(), satir.data);
+
+    /* Kaba ama yeterli bir eşitlik kontrolü: tur sayısı ve toplam XP aynıysa
+       zaten senkronizedir — sayfa her yenilendiğinde aynı soruyu sormaya
+       gerek yok. */
+    var zatenEsit = kayit.turlar.length === bulutKayit.turlar.length &&
+                     kayit.profil.toplamXP === bulutKayit.profil.toplamXP;
+    if (zatenEsit) return;
+
+    if (kayitBosMu(kayit))      { kayitUygulaVeYenile(bulutKayit); return; }
+    if (kayitBosMu(bulutKayit)) { Bulut.yaz(kayit); return; }
+    cakismaSor(kayit, bulutKayit, satir.updated_at);
+  });
+}
+
+function cakismaSor(yerelKayit, bulutKayit, bulutGuncelleme) {
+  $("cakisma-yerel-ozet").innerHTML =
+    "<strong>Bu cihaz:</strong> " + yerelKayit.turlar.length + " tur, " +
+    yerelKayit.profil.toplamXP + " XP.";
+  $("cakisma-bulut-ozet").innerHTML =
+    "<strong>Hesabın:</strong> " + bulutKayit.turlar.length + " tur, " +
+    bulutKayit.profil.toplamXP + " XP" +
+    (bulutGuncelleme ? ", son güncelleme " + tarihMetin(bulutGuncelleme) : "") + ".";
+  $("cakisma-ortu").hidden = false;
+
+  $("cakisma-yerel-sec").onclick = function () {
+    $("cakisma-ortu").hidden = true;
+    Bulut.yaz(yerelKayit);
+  };
+  $("cakisma-bulut-sec").onclick = function () {
+    $("cakisma-ortu").hidden = true;
+    kayitUygulaVeYenile(bulutKayit);
+  };
+}
+
+$("hesap-giris-btn").addEventListener("click", function () { kimlikAc("giris"); });
+$("hesap-cikis-btn").addEventListener("click", function () { Bulut.cikisYap(); });
+
+$("kimlik-vazgec").addEventListener("click", kimlikKapat);
+$("kimlik-ortu").addEventListener("click", function (e) { if (e.target === $("kimlik-ortu")) kimlikKapat(); });
+
+$("kimlik-mod-degistir").addEventListener("click", function (e) {
+  e.preventDefault();
+  kimlikMod = kimlikMod === "kayit" ? "giris" : "kayit";
+  $("kimlik-hata").hidden = true; $("kimlik-bilgi").hidden = true;
+  kimlikModTazele();
+});
+
+$("kimlik-sifre-unuttum").addEventListener("click", function (e) {
+  e.preventDefault();
+  var eposta = $("kimlik-eposta").value.trim();
+  if (!eposta) { kimlikHataGoster("Önce e-postanı yaz."); return; }
+  Bulut.sifreSifirla(eposta).then(function (sonuc) {
+    if (sonuc.error) { kimlikHataGoster(hataMetni(sonuc.error)); return; }
+    kimlikBilgiGoster("Şifre sıfırlama bağlantısı " + eposta + " adresine gönderildi.");
+  });
+});
+
+$("kimlik-gonder").addEventListener("click", function () {
+  var eposta = $("kimlik-eposta").value.trim();
+  var sifre = $("kimlik-sifre").value;
+
+  if (kimlikMod === "sifreYenile") {
+    if (sifre.length < 6) { kimlikHataGoster("Şifre en az 6 karakter olmalı."); return; }
+    $("kimlik-gonder").disabled = true;
+    Bulut.sifreGuncelle(sifre).then(function (sonuc) {
+      $("kimlik-gonder").disabled = false;
+      if (sonuc.error) { kimlikHataGoster(hataMetni(sonuc.error)); return; }
+      kimlikKapat();
+    });
+    return;
+  }
+
+  if (!eposta || sifre.length < 6) {
+    kimlikHataGoster("Geçerli bir e-posta ve en az 6 karakterlik bir şifre gir.");
+    return;
+  }
+
+  $("kimlik-gonder").disabled = true;
+  var istek = kimlikMod === "kayit" ? Bulut.kayitOl(eposta, sifre) : Bulut.girisYap(eposta, sifre);
+  istek.then(function (sonuc) {
+    $("kimlik-gonder").disabled = false;
+    if (sonuc.error) { kimlikHataGoster(hataMetni(sonuc.error)); return; }
+    if (kimlikMod === "kayit" && sonuc.data && sonuc.data.user && !sonuc.data.session) {
+      kimlikBilgiGoster("Kayıt oldun! Onay için e-postana gelen bağlantıya tıkla.");
+      return;
+    }
+    kimlikKapat();
+  });
+});
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -3104,6 +3537,9 @@ $("giris-basla").addEventListener("click", function () {
 kayit = kayitYukle();
 ayarlariUygula();
 
+Bulut.kur();
+hesapArayuzTazele();
+
 oyun.asama     = Math.min(3, Math.max(1, kayit.profil.asama || 1));
 oyun.altSeviye = Math.min(5, Math.max(1, kayit.profil.altSeviye || 1));
 oyun.deneyim   = Math.min(3, Math.max(1, kayit.profil.deneyim || 1));
@@ -3151,7 +3587,9 @@ window.__fo = {
   /* Kulaklık ön kontrolünü atlayıp doğrudan frekans merdivenini kurar —
      merdivenin karar mantığını simüle dinleyiciyle sınamak için. */
   merdivenBaslat: function (kulakAyri) { test = testSifir(kulakAyri); return test; },
-  merdivenSonraki: testSonraki
+  merdivenSonraki: testSonraki,
+  bulut: Bulut,
+  kimlikAc: kimlikAc
 };
 
 })();

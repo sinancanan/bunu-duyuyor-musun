@@ -6,8 +6,15 @@
 — kulaklıkla aç.
 
 Tarayıcıda çalışan tek dosyalık bir uygulama. Kurulum, derleme adımı, paket
-yöneticisi, bağımlılık ve ses dosyası **yok** — flüt tınısı dahil bütün sesler
-Web Audio API ile anlık üretilir. Hiçbir veri sunucuya gitmez.
+yöneticisi ve ses dosyası **yok** — flüt tınısı dahil bütün sesler Web Audio
+API ile anlık üretilir. Giriş yapmadan oynadığın sürece hiçbir veri sunucuya
+gitmez; her şey `localStorage`'da kalır.
+
+Girişin **tamamen opsiyonel**: hesap açarsan ilerlemen [Supabase](https://supabase.com)
+üzerinden cihazlar arası senkronize olur (bkz. [Hesap ve bulut senkronizasyonu](#hesap-ve-bulut-senkronizasyonu-opsiyonel)).
+Bu, tek harici bağımlılık olan bir CDN betiği (`@supabase/supabase-js`) yükler —
+yapılandırılmamışsa (veya CDN'e erişilemiyorsa) uygulama bunu hiç fark etmeden
+tamamen yerel çalışmaya devam eder.
 
 ## Çalıştırma
 
@@ -122,9 +129,46 @@ doğrudan canvas üzerine çizilir.
 
 ## Verilerin
 
-Her şey yalnızca senin tarayıcında, `localStorage` içinde (`frekansOyun.v1`)
-tutulur. Sunucuya hiçbir şey gitmez. Tarayıcı verilerini temizlersen kaybolur,
-o yüzden Ayarlar'dan arada bir **JSON olarak dışa aktar**.
+Her şey senin tarayıcında, `localStorage` içinde (`frekansOyun.v1`) tutulur.
+Tarayıcı verilerini temizlersen kaybolur, o yüzden Ayarlar'dan arada bir
+**JSON olarak dışa aktar**. Giriş yapmazsan buraya kadarı hepsi — sunucuya
+hiçbir şey gitmez.
+
+## Hesap ve bulut senkronizasyonu (opsiyonel)
+
+Sağ üstteki **Giriş Yap**'tan e-posta + şifre ile bir hesap açabilirsin.
+Giriş yaptığında yerelde tuttuğun aynı ilerleme (`kayit` nesnesi — skorlar,
+JND ölçümleri, işitme testi geçmişi, ayarlar) [Supabase](https://supabase.com)
+üzerindeki `profiles` tablosuna, satır başına Row Level Security ile
+(yalnızca `auth.uid() = id`) yedeklenir ve cihazlar arası senkronize olur.
+Hem bu cihazda hem hesapta ilerleme varsa (örn. ilk kez farklı bir cihazdan
+giriş yapıyorsan) hangisinin kullanılacağı sana sorulur — sessizce üzerine
+yazılmaz.
+
+Giriş yapmadan da uygulama önceki gibi birebir çalışır; bu bölüm tamamen
+isteğe bağlıdır.
+
+**Projeyi kendi Supabase hesabınla çalıştırmak istersen:**
+
+1. [supabase.com](https://supabase.com)'da bir proje oluştur (ücretsiz katman
+   yeterli).
+2. Proje SQL Editor'ünde [`supabase/schema.sql`](supabase/schema.sql)
+   dosyasının tamamını çalıştır — `profiles` tablosunu ve RLS kurallarını
+   kurar.
+3. Proje **Ayarlar → API**'den *Project URL* ve **anon / public** anahtarını
+   kopyala (`service_role` anahtarını **asla** kullanma — o sunucu tarafı
+   içindir).
+4. `index.html` içinde `SUPABASE_URL` ve `SUPABASE_ANON_KEY` sabitlerini
+   (dosyanın başlarında, "BULUT" yorumunun hemen altında) bu değerlerle
+   doldur.
+5. Supabase panelinde **Authentication → Providers → Email**'in açık
+   olduğundan emin ol (varsayılan olarak açıktır). İstersen aynı sayfadan
+   "Confirm email" zorunluluğunu kapatabilirsin — açıksa kayıt olan
+   kullanıcı e-postasını onaylamadan giriş yapamaz.
+
+`anon`/`public` anahtarı istemci tarafında görünmek üzere tasarlanmıştır
+(erişim denetimi veritabanı tarafında RLS ile yapılır), bu yüzden `index.html`
+içinde açıkça durması sorun değildir — herkese açık bir repoda bile.
 
 ## Klavye
 
@@ -161,9 +205,9 @@ kapaktır ve ortasından geçen yeşil çizgi okuma çizgisidir (yeşil = senin 
 renk kodu uygulamanın tamamında aynı). Faderın altındaki çentikli ölçek merkezi
 işaretler. Sonuç kadranı da çentikli bir VU göstergesi gibi çizilir.
 
-Tümü CSS gradyanı ve gölgesiyle yapılır — tek dosya kuralı gereği görsel dosya,
-font dosyası veya harici bağımlılık yoktur. `prefers-reduced-motion` altında
-animasyonlar durur, odak halkaları ve kontrast korunur.
+Tümü CSS gradyanı ve gölgesiyle yapılır — görsel dosya veya font dosyası
+yoktur. `prefers-reduced-motion` altında animasyonlar durur, odak halkaları ve
+kontrast korunur.
 
 ### Doğrulama
 

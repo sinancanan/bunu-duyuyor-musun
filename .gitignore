@@ -8,3 +8,6 @@
 # Düzenleyici
 .vscode/
 .idea/
+
+# Supabase CLI'nin `link` sırasında oluşturduğu makineye özel önbellek
+supabase/.temp/
